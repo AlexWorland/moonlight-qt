@@ -32,7 +32,8 @@ You can follow development on our [Discord server](https://moonlight-stream.org/
 - [NVIDIA Jetson and Nintendo Switch (Ubuntu L4T)](https://github.com/moonlight-stream/moonlight-docs/wiki/Installing-Moonlight-Qt-on-Linux4Tegra-(L4T)-Ubuntu)
 
 ### Nightly Builds
-- [Downloads](https://nightly.link/moonlight-stream/moonlight-qt/workflows/build/master)
+- **Upstream**: [Downloads](https://nightly.link/moonlight-stream/moonlight-qt/workflows/build/master)
+- **For forks**: See [BUILD_ARTIFACTS.md](docs/BUILD_ARTIFACTS.md) for instructions on accessing artifacts from your fork
 
 #### Special Thanks
 

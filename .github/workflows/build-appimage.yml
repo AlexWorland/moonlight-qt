@@ -25,8 +25,12 @@ jobs:
 
       - name: Setup environment
         run: |
-          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/keyrings/lunarg.asc > /dev/null
+          sudo chmod 644 /etc/apt/keyrings/lunarg.asc
           sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list https://packages.lunarg.com/vulkan/1.4.313/lunarg-vulkan-1.4.313-jammy.list
+          sudo sed -i 's|^deb https://|deb [signed-by=/etc/apt/keyrings/lunarg.asc] https://|g' /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list
+          sudo sed -i 's|^deb-src https://|deb-src [signed-by=/etc/apt/keyrings/lunarg.asc] https://|g' /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list
           sudo apt update
           sudo apt install -y qt6-base-dev qt6-declarative-dev libqt6svg6-dev qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts \
             qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick python3-pip nasm libgbm-dev libdrm-dev libfreetype-dev libasound2-dev \

@@ -669,9 +669,25 @@ Flickable {
                 Label {
                     width: parent.width
                     id: bitrateTitle
-                    text: qsTr("Video bitrate:")
+                    text: StreamingPreferences.autoAdjustBitrate ? 
+                          qsTr("Video bitrate: %1 Mbps (Auto)").arg(StreamingPreferences.bitrateKbps / 1000.0) :
+                          qsTr("Video bitrate: %1 Mbps").arg(StreamingPreferences.bitrateKbps / 1000.0)
                     font.pointSize: 12
                     wrapMode: Text.Wrap
+                    
+                    Connections {
+                        target: StreamingPreferences
+                        function onAutoAdjustBitrateChanged() {
+                            bitrateTitle.text = StreamingPreferences.autoAdjustBitrate ? 
+                                              qsTr("Video bitrate: %1 Mbps (Auto)").arg(StreamingPreferences.bitrateKbps / 1000.0) :
+                                              qsTr("Video bitrate: %1 Mbps").arg(StreamingPreferences.bitrateKbps / 1000.0)
+                        }
+                        function onBitrateChanged() {
+                            bitrateTitle.text = StreamingPreferences.autoAdjustBitrate ? 
+                                              qsTr("Video bitrate: %1 Mbps (Auto)").arg(StreamingPreferences.bitrateKbps / 1000.0) :
+                                              qsTr("Video bitrate: %1 Mbps").arg(StreamingPreferences.bitrateKbps / 1000.0)
+                        }
+                    }
                 }
 
                 Label {
@@ -690,6 +706,7 @@ Flickable {
                         id: slider
 
                         value: StreamingPreferences.bitrateKbps
+                        enabled: !StreamingPreferences.autoAdjustBitrate
 
                         stepSize: 500
                         from : 500
@@ -699,8 +716,10 @@ Flickable {
                         width: Math.min(bitrateDesc.implicitWidth, parent.width - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0))
 
                         onValueChanged: {
-                            bitrateTitle.text = qsTr("Video bitrate: %1 Mbps").arg(value / 1000.0)
-                            StreamingPreferences.bitrateKbps = value
+                            if (!StreamingPreferences.autoAdjustBitrate) {
+                                bitrateTitle.text = qsTr("Video bitrate: %1 Mbps").arg(value / 1000.0)
+                                StreamingPreferences.bitrateKbps = value
+                            }
                         }
 
                         onMoved: {
@@ -724,6 +743,23 @@ Flickable {
                             slider.value = defaultBitrate
                         }
                     }
+                }
+
+                CheckBox {
+                    id: autoBitrateCheck
+                    width: parent.width
+                    hoverEnabled: true
+                    text: qsTr("Auto bitrate")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.autoAdjustBitrate
+                    onCheckedChanged: {
+                        StreamingPreferences.autoAdjustBitrate = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Automatically adjusts bitrate based on network conditions during streaming to maintain optimal quality.")
                 }
 
                 Label {

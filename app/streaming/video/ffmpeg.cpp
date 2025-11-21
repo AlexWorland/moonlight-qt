@@ -265,6 +265,16 @@ IFFmpegRenderer* FFmpegVideoDecoder::getBackendRenderer()
     return m_BackendRenderer;
 }
 
+double FFmpegVideoDecoder::getAverageBandwidthMbps()
+{
+    return m_BwTracker.GetAverageMbps();
+}
+
+double FFmpegVideoDecoder::getPeakBandwidthMbps()
+{
+    return m_BwTracker.GetPeakMbps();
+}
+
 void FFmpegVideoDecoder::reset()
 {
     // Terminate the decoder thread before doing anything else.

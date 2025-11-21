@@ -2,6 +2,7 @@
 
 #include <QSemaphore>
 #include <QWindow>
+#include <QTimer>
 
 #include <Limelight.h>
 #include <opus_multistream.h>
@@ -171,6 +172,8 @@ private:
 
     void updateOptimalWindowDisplayMode();
 
+    void checkAndAdjustBitrate();
+
     enum class DecoderAvailability {
         None,
         Software,
@@ -281,6 +284,10 @@ private:
     Uint32 m_DropAudioEndTime;
 
     Overlay::OverlayManager m_OverlayManager;
+
+    QTimer* m_BitrateAdjustTimer;
+    int m_LastConnectionStatus;
+    int m_LastAdjustedBitrate;
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;

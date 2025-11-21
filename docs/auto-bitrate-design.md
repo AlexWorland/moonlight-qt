@@ -4,6 +4,8 @@
 
 The Auto Bitrate feature automatically adjusts video streaming bitrate based on real-time network conditions during an active streaming session. This ensures optimal streaming quality by dynamically adapting to available bandwidth and connection quality.
 
+**Key Point**: The feature does **not** grow bitrate unbounded. It respects multiple caps including measured bandwidth (with safety margin), default bitrate for the resolution/FPS setting, and hard limits (150 Mbps default, 500 Mbps if unlocked). See [Maximum Bitrate Limits](#maximum-bitrate-limits) for details.
+
 ## Goals
 
 - **Adaptive Quality**: Automatically adjust bitrate to match network conditions
@@ -214,6 +216,43 @@ The `BandwidthTracker` class maintains a sliding window of network throughput:
 - **Average Calculation**: Uses most recent 25% of buckets (2.5 seconds)
 - **Peak Calculation**: Highest throughput in any single bucket
 
+### Bandwidth Detection Logic
+
+The system determines "available bandwidth" by measuring actual network throughput:
+
+1. **Measurement**: `BandwidthTracker` tracks bytes received from the video stream over time
+2. **Average Bandwidth**: Calculated from the most recent 2.5 seconds of data (25% of 10-second window)
+3. **Available Bandwidth Check**: System considers bandwidth "available" if:
+   - `averageBandwidthMbps > currentBitrateMbps × 1.2` (at least 20% headroom)
+
+### Maximum Bitrate Limits
+
+The auto bitrate feature does **not** grow unbounded. It respects multiple caps:
+
+1. **80% of Measured Bandwidth**: Uses only 80% of measured average bandwidth as a safety margin
+   - Formula: `maxBitrate = avgBandwidthMbps × 1000 × 0.8`
+
+2. **Default Bitrate for Resolution**: Calculated based on resolution, FPS, and YUV444 setting
+   - Uses resolution table: 720p=5Mbps, 1080p=10Mbps, 1440p=20Mbps, 4K=40Mbps base
+   - Scaled by FPS factor (non-linear above 60 FPS)
+   - Doubled for YUV444 mode
+   - Formula: `defaultBitrate = resolutionFactor × frameRateFactor × 1000`
+
+3. **Hard Cap**: 
+   - **150 Mbps** if `unlockBitrate` is disabled (default)
+   - **500 Mbps** if `unlockBitrate` is enabled (experimental)
+
+4. **Final Maximum**: The system uses the **minimum** of all these caps:
+   ```
+   maxBitrate = min(
+       80% of measured bandwidth,
+       default bitrate for resolution/FPS,
+       150 Mbps (or 500 Mbps if unlocked)
+   )
+   ```
+
+**Example**: If measured bandwidth is 200 Mbps, but default bitrate for 1080p60 is 20 Mbps, the system will cap at 20 Mbps (not 160 Mbps which is 80% of 200 Mbps).
+
 ### Connection Status
 
 The Limelight library provides connection status updates:
@@ -238,14 +277,19 @@ When `CONN_STATUS_POOR` is detected:
 
 When `CONN_STATUS_OKAY` and bandwidth headroom exists:
 
-1. **Condition**: `avgBandwidth > currentBitrate × 1.2`
+1. **Condition**: `avgBandwidth > currentBitrate × 1.2` (at least 20% headroom detected)
 2. **Calculation**: `newBitrate = min(currentBitrate × 1.1, maxBitrate)`
-3. **Caps Applied**:
-   - Maximum: 80% of available bandwidth
-   - Default bitrate cap (unless unlockBitrate enabled)
-   - 150 Mbps cap (unless unlockBitrate enabled)
+   - Increases gradually by 10% per adjustment
+   - Never exceeds the calculated maximum (see Maximum Bitrate Limits above)
+3. **Caps Applied** (in order of application):
+   - **80% of measured bandwidth**: Safety margin to avoid saturating the connection
+   - **Default bitrate**: Based on resolution/FPS/YUV444 (prevents over-allocation)
+   - **Hard cap**: 150 Mbps (or 500 Mbps if unlockBitrate enabled)
+   - System uses the **minimum** of all three caps
 4. **Threshold**: Only adjust if `newBitrate > currentBitrate + 1000 kbps`
 5. **Action**: Update `StreamingPreferences.bitrateKbps`
+
+**Important**: The system will **never exceed** the default bitrate for the current resolution/FPS setting unless `unlockBitrate` is enabled. This prevents the auto bitrate feature from allocating more bandwidth than necessary for the chosen quality settings.
 
 ### Adjustment Constraints
 
@@ -271,6 +315,16 @@ When `CONN_STATUS_OKAY` and bandwidth headroom exists:
 3. **Bitrate Display Label**
    - Format: `"Video bitrate: X.X Mbps"` or `"Video bitrate: X.X Mbps (Auto)"`
    - Updates: Reacts to both bitrate and auto mode changes
+
+### Debug Stats Overlay
+
+The performance overlay (enabled via "Show performance stats while streaming" checkbox) displays bandwidth information:
+
+- **Bandwidth Display**: Shows average and peak bandwidth measurements
+- **Format**: `"Bandwidth: X.X Mbps avg, X.X Mbps peak (10s window)"`
+- **Location**: Appears in the debug stats overlay alongside other performance metrics
+- **Purpose**: Helps users monitor network conditions and understand auto bitrate adjustments
+- **Update Frequency**: Updated approximately every second along with other stats
 
 ### UI State Diagram
 
@@ -322,6 +376,8 @@ double getPeakBandwidthMbps();
 ```
 
 These methods provide access to the internal `BandwidthTracker` for network condition assessment.
+
+**Bandwidth Display**: These metrics are also displayed in the debug stats overlay (performance overlay) to help users monitor network conditions in real-time.
 
 ### Preference Updates
 

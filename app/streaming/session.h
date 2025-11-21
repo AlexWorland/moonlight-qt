@@ -2,6 +2,7 @@
 
 #include <QSemaphore>
 #include <QWindow>
+#include <QTimer>
 
 #include <Limelight.h>
 #include <opus_multistream.h>
@@ -123,15 +124,19 @@ public:
 
     void setShouldExitAfterQuit();
 
+    void checkAndAdjustBitrate();
+
     int getCurrentAdjustedBitrate() const
     {
-        return m_AutoAdjustBitrateActive && m_Preferences->autoAdjustBitrate ?
-               m_CurrentAdjustedBitrate : m_Preferences->bitrateKbps;
+        // Return the last adjusted bitrate if auto bitrate is active, otherwise return preference
+        return (m_Preferences->autoAdjustBitrate && m_LastAdjustedBitrate > 0) ?
+               m_LastAdjustedBitrate : m_Preferences->bitrateKbps;
     }
 
     int getMaxBitrateLimit() const
     {
-        return m_Preferences->bitrateKbps;
+        // Return the slider maximum as the limit
+        return m_Preferences->unlockBitrate ? 500000 : 150000;
     }
 
 signals:
@@ -181,6 +186,8 @@ private:
     void notifyMouseEmulationMode(bool enabled);
 
     void updateOptimalWindowDisplayMode();
+
+    void checkAndAdjustBitrate();
 
     enum class DecoderAvailability {
         None,
@@ -294,12 +301,11 @@ private:
     Overlay::OverlayManager m_OverlayManager;
 
     // Bitrate adjustment state
-    int m_CurrentAdjustedBitrate;
-    int m_LastBitrateCheckTime;
+    QTimer* m_BitrateAdjustTimer;
     int m_LastConnectionStatus;
-    bool m_AutoAdjustBitrateActive;
+    int m_LastAdjustedBitrate;
+    int m_CurrentAdjustedBitrate;  // For compatibility with master branch code
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;
     static QSemaphore s_ActiveSessionSemaphore;
-};

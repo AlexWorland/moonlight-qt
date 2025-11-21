@@ -265,6 +265,16 @@ IFFmpegRenderer* FFmpegVideoDecoder::getBackendRenderer()
     return m_BackendRenderer;
 }
 
+double FFmpegVideoDecoder::getAverageBandwidthMbps()
+{
+    return m_BwTracker.GetAverageMbps();
+}
+
+double FFmpegVideoDecoder::getPeakBandwidthMbps()
+{
+    return m_BwTracker.GetPeakMbps();
+}
+
 void FFmpegVideoDecoder::reset()
 {
     // Terminate the decoder thread before doing anything else.
@@ -835,35 +845,26 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
 
     if (stats.receivedFps > 0) {
         if (m_VideoDecoderCtx != nullptr) {
-#ifdef DISPLAY_BITRATE
             double avgVideoMbps = m_BwTracker.GetAverageMbps();
             double peakVideoMbps = m_BwTracker.GetPeakMbps();
-#endif
 
             int currentBitrateKbps = Session::get() ? Session::get()->getCurrentAdjustedBitrate() : 0;
             int maxBitrateKbps = Session::get() ? Session::get()->getMaxBitrateLimit() : 0;
             ret = snprintf(&output[offset],
                            length - offset,
                            "Video stream: %dx%d %.2f FPS (Codec: %s)\n"
-#ifdef DISPLAY_BITRATE
                            "Current bitrate: %.1f Mbps\n"
                            "Max bitrate limit: %.1f Mbps\n"
-                           "Average bitrate: %.1f Mbps, Peak (%us): %.1f Mbps\n"
-#endif
-                           ,
+                           "Bandwidth: %.1f Mbps avg, %.1f Mbps peak (%us window)\n",
                            m_VideoDecoderCtx->width,
                            m_VideoDecoderCtx->height,
                            stats.totalFps,
-                           codecString
-#ifdef DISPLAY_BITRATE
-                           ,
+                           codecString,
                            currentBitrateKbps / 1000.0,
                            maxBitrateKbps / 1000.0,
                            avgVideoMbps,
-                           m_BwTracker.GetWindowSeconds(),
-                           peakVideoMbps
-#endif
-                           );
+                           peakVideoMbps,
+                           m_BwTracker.GetWindowSeconds());
             if (ret < 0 || ret >= length - offset) {
                 SDL_assert(false);
                 return;

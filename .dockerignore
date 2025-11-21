@@ -1,0 +1,35 @@
+# Build artifacts
+build/
+deps/
+
+# Git
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/
+*.md
+!docker/README.md
+
+# CI/CD
+.github/
+
+# Docker files (don't copy into image)
+Dockerfile*
+docker-compose.yml
+.dockerignore
+
+# Temporary files
+*.tmp
+*.log

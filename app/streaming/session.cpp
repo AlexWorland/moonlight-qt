@@ -99,6 +99,11 @@ void Session::clConnectionTerminated(int errorCode)
 {
     unsigned int portFlags = LiGetPortFlagsFromTerminationErrorCode(errorCode);
     s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
+    
+    // Stop bitrate adjustment timer
+    if (s_ActiveSession->m_BitrateAdjustTimer != nullptr) {
+        s_ActiveSession->m_BitrateAdjustTimer->stop();
+    }
 
     // Display the termination dialog if this was not intended
     switch (errorCode) {
@@ -187,9 +192,14 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
 
     Session* session = s_ActiveSession;
     
-    // Update connection status for bitrate adjustment
-    // The actual adjustment happens in the main loop every second
-    session->m_LastConnectionStatus = connectionStatus;
+    if (session != nullptr) {
+        session->m_LastConnectionStatus = connectionStatus;
+        
+        // Trigger bitrate adjustment check if auto bitrate is enabled
+        if (session->m_Preferences->autoAdjustBitrate) {
+            session->checkAndAdjustBitrate();
+        }
+    }
 
     if (!session->m_Preferences->connectionWarnings) {
         return;
@@ -589,8 +599,15 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+      m_DropAudioEndTime(0),
+      m_BitrateAdjustTimer(nullptr),
+      m_LastConnectionStatus(CONN_STATUS_OKAY),
+      m_LastAdjustedBitrate(0)
 {
+    m_BitrateAdjustTimer = new QTimer(this);
+    m_BitrateAdjustTimer->setInterval(5000); // Check every 5 seconds
+    m_BitrateAdjustTimer->setSingleShot(false);
+    connect(m_BitrateAdjustTimer, &QTimer::timeout, this, &Session::checkAndAdjustBitrate);
 }
 
 Session::~Session()
@@ -688,9 +705,8 @@ bool Session::initialize()
     
     // Initialize bitrate adjustment state
     m_CurrentAdjustedBitrate = m_Preferences->bitrateKbps;
-    m_LastBitrateCheckTime = SDL_GetTicks();
     m_LastConnectionStatus = CONN_STATUS_OKAY;
-    m_AutoAdjustBitrateActive = m_Preferences->autoAdjustBitrate;
+    m_LastAdjustedBitrate = 0;
 
 #ifndef STEAM_LINK
     // Opt-in to all encryption features if we detect that the platform
@@ -1704,6 +1720,14 @@ bool Session::startConnectionAsync()
     }
 
     emit connectionStarted();
+    
+    // Start bitrate adjustment timer if auto bitrate is enabled
+    if (m_Preferences->autoAdjustBitrate && m_BitrateAdjustTimer != nullptr) {
+        m_LastAdjustedBitrate = m_StreamConfig.bitrate;
+        m_CurrentAdjustedBitrate = m_StreamConfig.bitrate;  // Initialize for getCurrentAdjustedBitrate()
+        m_BitrateAdjustTimer->start();
+    }
+    
     return true;
 }
 
@@ -1727,6 +1751,83 @@ void Session::flushWindowEvents()
 void Session::setShouldExitAfterQuit()
 {
     m_ShouldExitAfterQuit = true;
+}
+
+void Session::checkAndAdjustBitrate()
+{
+    if (!m_Preferences->autoAdjustBitrate || m_VideoDecoder == nullptr) {
+        if (m_BitrateAdjustTimer != nullptr) {
+            m_BitrateAdjustTimer->stop();
+        }
+        return;
+    }
+
+    // Get bandwidth info from decoder if it's FFmpegVideoDecoder
+#ifdef HAVE_FFMPEG
+    FFmpegVideoDecoder* ffmpegDecoder = dynamic_cast<FFmpegVideoDecoder*>(m_VideoDecoder);
+    if (ffmpegDecoder == nullptr) {
+        return;
+    }
+
+    double avgBandwidthMbps = ffmpegDecoder->getAverageBandwidthMbps();
+    double peakBandwidthMbps = ffmpegDecoder->getPeakBandwidthMbps();
+    int currentBitrateKbps = m_StreamConfig.bitrate;
+    double currentBitrateMbps = currentBitrateKbps / 1000.0;
+
+    // Calculate target bitrate based on network conditions
+    int targetBitrateKbps = currentBitrateKbps;
+    bool shouldAdjust = false;
+
+    // Adjust based on connection status
+    if (m_LastConnectionStatus == CONN_STATUS_POOR) {
+        // Reduce bitrate by 20% when connection is poor
+        targetBitrateKbps = qMax(500, (int)(currentBitrateKbps * 0.8));
+        shouldAdjust = true;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Poor connection detected. Reducing bitrate from %d to %d kbps",
+                    currentBitrateKbps, targetBitrateKbps);
+    }
+    else if (m_LastConnectionStatus == CONN_STATUS_OKAY) {
+        // Check if bandwidth is consistently higher than current bitrate
+        // Allow increasing bitrate if we have headroom (use 80% of available bandwidth)
+        if (avgBandwidthMbps > 0 && avgBandwidthMbps > currentBitrateMbps * 1.2) {
+            // Increase bitrate gradually (by 10% at a time)
+            // Use 80% of measured bandwidth as safety margin
+            int bandwidthBasedMaxKbps = (int)(avgBandwidthMbps * 1000 * 0.8);
+            
+            // Use slider maximum as absolute cap (150 Mbps default, 500 Mbps if unlocked)
+            int sliderMaxKbps = m_Preferences->unlockBitrate ? 500000 : 150000;
+            
+            // Use the minimum of bandwidth-based max and slider max
+            int maxBitrateKbps = qMin(bandwidthBasedMaxKbps, sliderMaxKbps);
+            
+            targetBitrateKbps = qMin((int)(currentBitrateKbps * 1.1), maxBitrateKbps);
+            
+            // Only adjust if we're significantly below the target
+            if (targetBitrateKbps > currentBitrateKbps + 1000) {
+                shouldAdjust = true;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Good connection detected. Increasing bitrate from %d to %d kbps (available: %.1f Mbps, max: %d kbps)",
+                            currentBitrateKbps, targetBitrateKbps, avgBandwidthMbps, sliderMaxKbps);
+            }
+        }
+    }
+
+    // Only adjust if change is significant (at least 5% or 1000 kbps)
+    if (shouldAdjust && qAbs(targetBitrateKbps - currentBitrateKbps) >= qMax(1000, currentBitrateKbps / 20)) {
+        // Update preference for future sessions
+        m_Preferences->bitrateKbps = targetBitrateKbps;
+        m_LastAdjustedBitrate = targetBitrateKbps;
+        m_CurrentAdjustedBitrate = targetBitrateKbps;  // Keep in sync for getCurrentAdjustedBitrate()
+        
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Auto bitrate adjustment: %d -> %d kbps (avg bandwidth: %.1f Mbps, peak: %.1f Mbps)",
+                    currentBitrateKbps, targetBitrateKbps, avgBandwidthMbps, peakBandwidthMbps);
+        
+        // Note: Actual bitrate change during active stream would require restarting the connection
+        // For now, we update the preference so next session uses the adjusted bitrate
+    }
+#endif
 }
 
 class ExecThread : public QThread
@@ -2037,43 +2138,9 @@ void Session::execInternal()
     // Hijack this thread to be the SDL main thread. We have to do this
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
-    Uint32 lastBitrateCheckTime = SDL_GetTicks();
     for (;;) {
-        // Check bitrate adjustment every 1 second
-        Uint32 currentTime = SDL_GetTicks();
-        if (m_AutoAdjustBitrateActive && m_Preferences->autoAdjustBitrate) {
-            Uint32 timeSinceLastCheck = currentTime - lastBitrateCheckTime;
-            if (timeSinceLastCheck >= 1000) {
-                int originalBitrate = m_Preferences->bitrateKbps;
-                int adjustedBitrate = m_CurrentAdjustedBitrate;
-                
-                // Use the last known connection status
-                switch (m_LastConnectionStatus) {
-                case CONN_STATUS_POOR:
-                    // Reduce bitrate by half (exponential decay)
-                    adjustedBitrate = (int)(adjustedBitrate * 0.5f);
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                               "Poor network conditions detected. Reducing bitrate from %d to %d kbps",
-                               m_CurrentAdjustedBitrate, adjustedBitrate);
-                    break;
-                    
-                case CONN_STATUS_OKAY:
-                    // Increase bitrate by quarter (exponential growth)
-                    adjustedBitrate = (int)(adjustedBitrate * 1.25f);
-                    // Don't exceed the original/user-set bitrate
-                    if (adjustedBitrate > originalBitrate) {
-                        adjustedBitrate = originalBitrate;
-                    }
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                               "Good network conditions detected. Increasing bitrate from %d to %d kbps",
-                               m_CurrentAdjustedBitrate, adjustedBitrate);
-                    break;
-                }
-                
-                m_CurrentAdjustedBitrate = adjustedBitrate;
-                lastBitrateCheckTime = currentTime;
-            }
-        }
+        // Bitrate adjustment is handled by QTimer in checkAndAdjustBitrate()
+        // which runs every 5 seconds and updates m_LastAdjustedBitrate
         
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform

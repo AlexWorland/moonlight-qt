@@ -1,0 +1,67 @@
+---
+# This workflow creates a comment with artifact download links on PRs
+# It runs after the main build workflow completes
+
+name: Artifact Links
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Artifact Links
+        id: links
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          REPO="${{ github.repository }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          
+          # Generate nightly.link URLs
+          APPIMAGE_URL="https://nightly.link/${REPO}/workflows/build/${BRANCH}/Moonlight-LinuxAppImage-*.zip"
+          STEAMLINK_URL="https://nightly.link/${REPO}/workflows/build/${BRANCH}/Moonlight-SteamLink-*.zip"
+          WINDOWS_X64_URL="https://nightly.link/${REPO}/workflows/build/${BRANCH}/Moonlight-windows-2025-x64-*.zip"
+          WINDOWS_ARM64_URL="https://nightly.link/${REPO}/workflows/build/${BRANCH}/Moonlight-windows-2025-arm64-*.zip"
+          MACOS_URL="https://nightly.link/${REPO}/workflows/build/${BRANCH}/Moonlight-macOS-*.zip"
+          
+          echo "appimage_url=${APPIMAGE_URL}" >> "${GITHUB_OUTPUT}"
+          echo "steamlink_url=${STEAMLINK_URL}" >> "${GITHUB_OUTPUT}"
+          echo "windows_x64_url=${WINDOWS_X64_URL}" >> "${GITHUB_OUTPUT}"
+          echo "windows_arm64_url=${WINDOWS_ARM64_URL}" >> "${GITHUB_OUTPUT}"
+          echo "macos_url=${MACOS_URL}" >> "${GITHUB_OUTPUT}"
+          
+          # Create markdown comment
+          COMMENT="## 📦 Build Artifacts
+          
+          Download build artifacts from this workflow run:
+          
+          - **Linux AppImage**: [Download](${APPIMAGE_URL})
+          - **Steam Link**: [Download](${STEAMLINK_URL})
+          - **Windows x64**: [Download](${WINDOWS_X64_URL})
+          - **Windows ARM64**: [Download](${WINDOWS_ARM64_URL})
+          - **macOS**: [Download](${MACOS_URL})
+          
+          Or view all artifacts: https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          
+          echo "comment<<EOF" >> "${GITHUB_OUTPUT}"
+          echo "${COMMENT}" >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              body: `${{ steps.links.outputs.comment }}`
+            })

@@ -190,20 +190,22 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
                 "Connection status update: %d",
                 connectionStatus);
 
-    if (s_ActiveSession != nullptr) {
-        s_ActiveSession->m_LastConnectionStatus = connectionStatus;
+    Session* session = s_ActiveSession;
+    
+    if (session != nullptr) {
+        session->m_LastConnectionStatus = connectionStatus;
         
         // Trigger bitrate adjustment check if auto bitrate is enabled
-        if (s_ActiveSession->m_Preferences->autoAdjustBitrate) {
-            s_ActiveSession->checkAndAdjustBitrate();
+        if (session->m_Preferences->autoAdjustBitrate) {
+            session->checkAndAdjustBitrate();
         }
     }
 
-    if (!s_ActiveSession->m_Preferences->connectionWarnings) {
+    if (!session->m_Preferences->connectionWarnings) {
         return;
     }
 
-    if (s_ActiveSession->m_MouseEmulationRefCount > 0) {
+    if (session->m_MouseEmulationRefCount > 0) {
         // Don't display the overlay if mouse emulation is already using it
         return;
     }
@@ -211,13 +213,13 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
     switch (connectionStatus)
     {
     case CONN_STATUS_POOR:
-        s_ActiveSession->m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate,
-                                                            s_ActiveSession->m_StreamConfig.bitrate > 5000 ?
+        session->m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate,
+                                                            session->m_StreamConfig.bitrate > 5000 ?
                                                                 "Slow connection to PC\nReduce your bitrate" : "Poor connection to PC");
-        s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
+        session->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
         break;
     case CONN_STATUS_OKAY:
-        s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
+        session->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
         break;
     }
 }
@@ -700,6 +702,11 @@ bool Session::initialize()
 
     m_StreamConfig.fps = m_Preferences->fps;
     m_StreamConfig.bitrate = m_Preferences->bitrateKbps;
+    
+    // Initialize bitrate adjustment state
+    m_CurrentAdjustedBitrate = m_Preferences->bitrateKbps;
+    m_LastConnectionStatus = CONN_STATUS_OKAY;
+    m_LastAdjustedBitrate = 0;
 
 #ifndef STEAM_LINK
     // Opt-in to all encryption features if we detect that the platform
@@ -1717,6 +1724,7 @@ bool Session::startConnectionAsync()
     // Start bitrate adjustment timer if auto bitrate is enabled
     if (m_Preferences->autoAdjustBitrate && m_BitrateAdjustTimer != nullptr) {
         m_LastAdjustedBitrate = m_StreamConfig.bitrate;
+        m_CurrentAdjustedBitrate = m_StreamConfig.bitrate;  // Initialize for getCurrentAdjustedBitrate()
         m_BitrateAdjustTimer->start();
     }
     
@@ -1810,6 +1818,7 @@ void Session::checkAndAdjustBitrate()
         // Update preference for future sessions
         m_Preferences->bitrateKbps = targetBitrateKbps;
         m_LastAdjustedBitrate = targetBitrateKbps;
+        m_CurrentAdjustedBitrate = targetBitrateKbps;  // Keep in sync for getCurrentAdjustedBitrate()
         
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "Auto bitrate adjustment: %d -> %d kbps (avg bandwidth: %.1f Mbps, peak: %.1f Mbps)",
@@ -2121,6 +2130,7 @@ void Session::execInternal()
 
     // Toggle the stats overlay if requested by the user
     m_OverlayManager.setOverlayState(Overlay::OverlayDebug, m_Preferences->showPerformanceOverlay);
+    m_OverlayManager.setOverlayState(Overlay::OverlayBitrate, m_Preferences->showBitrateOverlay);
 
     // Switch to async logging mode when we enter the SDL loop
     StreamUtils::enterAsyncLoggingMode();
@@ -2129,6 +2139,9 @@ void Session::execInternal()
     // because we want to suspend all Qt processing until the stream is over.
     SDL_Event event;
     for (;;) {
+        // Bitrate adjustment is handled by QTimer in checkAndAdjustBitrate()
+        // which runs every 5 seconds and updates m_LastAdjustedBitrate
+        
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,

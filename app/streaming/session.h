@@ -124,6 +124,21 @@ public:
 
     void setShouldExitAfterQuit();
 
+    void checkAndAdjustBitrate();
+
+    int getCurrentAdjustedBitrate() const
+    {
+        // Return the last adjusted bitrate if auto bitrate is active, otherwise return preference
+        return (m_Preferences->autoAdjustBitrate && m_LastAdjustedBitrate > 0) ?
+               m_LastAdjustedBitrate : m_Preferences->bitrateKbps;
+    }
+
+    int getMaxBitrateLimit() const
+    {
+        // Return the slider maximum as the limit
+        return m_Preferences->unlockBitrate ? 500000 : 150000;
+    }
+
 signals:
     void stageStarting(QString stage);
 
@@ -285,11 +300,12 @@ private:
 
     Overlay::OverlayManager m_OverlayManager;
 
+    // Bitrate adjustment state
     QTimer* m_BitrateAdjustTimer;
     int m_LastConnectionStatus;
     int m_LastAdjustedBitrate;
+    int m_CurrentAdjustedBitrate;  // For compatibility with master branch code
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;
     static QSemaphore s_ActiveSessionSemaphore;
-};

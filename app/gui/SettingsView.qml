@@ -1741,6 +1741,11 @@ Flickable {
                     font.pointSize: 12
                     checked: StreamingPreferences.showPerformanceOverlay
                     onCheckedChanged: {
+                        if (checked) {
+                            // Uncheck other overlays
+                            showBitrateOverlay.checked = false
+                            showSimplifiedStatsOverlay.checked = false
+                        }
                         StreamingPreferences.showPerformanceOverlay = checked
                     }
 
@@ -1759,6 +1764,11 @@ Flickable {
                     font.pointSize: 12
                     checked: StreamingPreferences.showBitrateOverlay
                     onCheckedChanged: {
+                        if (checked) {
+                            // Uncheck other overlays
+                            showPerformanceOverlay.checked = false
+                            showSimplifiedStatsOverlay.checked = false
+                        }
                         StreamingPreferences.showBitrateOverlay = checked
                     }
 
@@ -1776,6 +1786,11 @@ Flickable {
                     font.pointSize: 12
                     checked: StreamingPreferences.showSimplifiedStatsOverlay
                     onCheckedChanged: {
+                        if (checked) {
+                            // Uncheck other overlays
+                            showPerformanceOverlay.checked = false
+                            showBitrateOverlay.checked = false
+                        }
                         StreamingPreferences.showSimplifiedStatsOverlay = checked
                     }
 

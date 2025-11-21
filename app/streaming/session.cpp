@@ -1784,18 +1784,14 @@ void Session::checkAndAdjustBitrate()
         // Allow increasing bitrate if we have headroom (use 80% of available bandwidth)
         if (avgBandwidthMbps > 0 && avgBandwidthMbps > currentBitrateMbps * 1.2) {
             // Increase bitrate gradually (by 10% at a time)
-            int maxBitrateKbps = (int)(avgBandwidthMbps * 1000 * 0.8);
-            int defaultBitrateKbps = StreamingPreferences::getDefaultBitrate(
-                m_StreamConfig.width,
-                m_StreamConfig.height,
-                m_StreamConfig.fps,
-                m_Preferences->enableYUV444);
+            // Use 80% of measured bandwidth as safety margin
+            int bandwidthBasedMaxKbps = (int)(avgBandwidthMbps * 1000 * 0.8);
             
-            // Don't exceed default bitrate unless unlockBitrate is enabled
-            if (!m_Preferences->unlockBitrate) {
-                maxBitrateKbps = qMin(maxBitrateKbps, 150000);
-            }
-            maxBitrateKbps = qMin(maxBitrateKbps, defaultBitrateKbps);
+            // Use slider maximum as absolute cap (150 Mbps default, 500 Mbps if unlocked)
+            int sliderMaxKbps = m_Preferences->unlockBitrate ? 500000 : 150000;
+            
+            // Use the minimum of bandwidth-based max and slider max
+            int maxBitrateKbps = qMin(bandwidthBasedMaxKbps, sliderMaxKbps);
             
             targetBitrateKbps = qMin((int)(currentBitrateKbps * 1.1), maxBitrateKbps);
             
@@ -1803,8 +1799,8 @@ void Session::checkAndAdjustBitrate()
             if (targetBitrateKbps > currentBitrateKbps + 1000) {
                 shouldAdjust = true;
                 SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                            "Good connection detected. Increasing bitrate from %d to %d kbps (available: %.1f Mbps)",
-                            currentBitrateKbps, targetBitrateKbps, avgBandwidthMbps);
+                            "Good connection detected. Increasing bitrate from %d to %d kbps (available: %.1f Mbps, max: %d kbps)",
+                            currentBitrateKbps, targetBitrateKbps, avgBandwidthMbps, sliderMaxKbps);
             }
         }
     }

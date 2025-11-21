@@ -227,31 +227,26 @@ The system determines "available bandwidth" by measuring actual network throughp
 
 ### Maximum Bitrate Limits
 
-The auto bitrate feature does **not** grow unbounded. It respects multiple caps:
+The auto bitrate feature does **not** grow unbounded. It respects two caps:
 
 1. **80% of Measured Bandwidth**: Uses only 80% of measured average bandwidth as a safety margin
-   - Formula: `maxBitrate = avgBandwidthMbps × 1000 × 0.8`
+   - Formula: `bandwidthMax = avgBandwidthMbps × 1000 × 0.8`
+   - Prevents saturating the connection by leaving 20% headroom
 
-2. **Default Bitrate for Resolution**: Calculated based on resolution, FPS, and YUV444 setting
-   - Uses resolution table: 720p=5Mbps, 1080p=10Mbps, 1440p=20Mbps, 4K=40Mbps base
-   - Scaled by FPS factor (non-linear above 60 FPS)
-   - Doubled for YUV444 mode
-   - Formula: `defaultBitrate = resolutionFactor × frameRateFactor × 1000`
+2. **Slider Maximum**: Uses the bitrate slider's maximum value as the absolute cap
+   - **150 Mbps** (150,000 kbps) if `unlockBitrate` is disabled (default)
+   - **500 Mbps** (500,000 kbps) if `unlockBitrate` is enabled (experimental)
+   - This is the same maximum value shown in the UI slider
 
-3. **Hard Cap**: 
-   - **150 Mbps** if `unlockBitrate` is disabled (default)
-   - **500 Mbps** if `unlockBitrate` is enabled (experimental)
-
-4. **Final Maximum**: The system uses the **minimum** of all these caps:
+3. **Final Maximum**: The system uses the **minimum** of these two caps:
    ```
    maxBitrate = min(
        80% of measured bandwidth,
-       default bitrate for resolution/FPS,
-       150 Mbps (or 500 Mbps if unlocked)
+       slider maximum (150 Mbps or 500 Mbps)
    )
    ```
 
-**Example**: If measured bandwidth is 200 Mbps, but default bitrate for 1080p60 is 20 Mbps, the system will cap at 20 Mbps (not 160 Mbps which is 80% of 200 Mbps).
+**Example**: If measured bandwidth is 200 Mbps, the system calculates 160 Mbps (80% of 200 Mbps). If the slider max is 150 Mbps, the system caps at 150 Mbps. If unlockBitrate is enabled (500 Mbps max), it would cap at 160 Mbps (the bandwidth limit).
 
 ### Connection Status
 
@@ -281,15 +276,14 @@ When `CONN_STATUS_OKAY` and bandwidth headroom exists:
 2. **Calculation**: `newBitrate = min(currentBitrate × 1.1, maxBitrate)`
    - Increases gradually by 10% per adjustment
    - Never exceeds the calculated maximum (see Maximum Bitrate Limits above)
-3. **Caps Applied** (in order of application):
+3. **Caps Applied**:
    - **80% of measured bandwidth**: Safety margin to avoid saturating the connection
-   - **Default bitrate**: Based on resolution/FPS/YUV444 (prevents over-allocation)
-   - **Hard cap**: 150 Mbps (or 500 Mbps if unlockBitrate enabled)
-   - System uses the **minimum** of all three caps
+   - **Slider maximum**: 150 Mbps (or 500 Mbps if unlockBitrate enabled)
+   - System uses the **minimum** of these two caps
 4. **Threshold**: Only adjust if `newBitrate > currentBitrate + 1000 kbps`
 5. **Action**: Update `StreamingPreferences.bitrateKbps`
 
-**Important**: The system will **never exceed** the default bitrate for the current resolution/FPS setting unless `unlockBitrate` is enabled. This prevents the auto bitrate feature from allocating more bandwidth than necessary for the chosen quality settings.
+**Important**: The system uses the bitrate slider's maximum value as the single source of truth for the absolute maximum bitrate. This ensures consistency between manual and automatic bitrate settings.
 
 ### Adjustment Constraints
 

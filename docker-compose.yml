@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: moonlight-qt-builder:latest
+    volumes:
+      # Mount source code
+      - .:/workspace:rw
+      # Mount build directory to persist build artifacts
+      - ./build:/workspace/build:rw
+      # Mount deps directory for dependencies
+      - ./deps:/workspace/deps:rw
+    environment:
+      - CI_VERSION=${CI_VERSION:-}
+      - BUILD_CONFIG=${BUILD_CONFIG:-release}
+    working_dir: /workspace
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+
+  # Service for building AppImage (includes dependency building)
+  build-appimage:
+    build:
+      context: .
+      dockerfile: Dockerfile.appimage
+    image: moonlight-qt-appimage-builder:latest
+    volumes:
+      - .:/workspace:rw
+      - ./build:/workspace/build:rw
+      - ./deps:/workspace/deps:rw
+    environment:
+      - CI_VERSION=${CI_VERSION:-}
+    working_dir: /workspace
+    privileged: true  # Required for sudo in entrypoint script
+    command: scripts/build-appimage.sh
+
+  # Service for development builds (quick, no dependencies)
+  build-dev:
+    extends: builder
+    command: >
+      bash -c "
+        git submodule update --init --recursive &&
+        mkdir -p build/build-release &&
+        cd build/build-release &&
+        qmake6 ../../moonlight-qt.pro &&
+        make -j$$(nproc) release
+      "

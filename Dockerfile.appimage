@@ -1,0 +1,97 @@
+# Dockerfile for building AppImage with all dependencies
+# This builds SDL, SDL_ttf, libva, libplacebo, dav1d, and FFmpeg from source
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    wget \
+    curl \
+    python3 \
+    python3-pip \
+    nasm \
+    autoconf \
+    automake \
+    libtool \
+    pkg-config \
+    ninja-build \
+    zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Qt 6
+RUN apt-get update && apt-get install -y \
+    qt6-base-dev \
+    qt6-declarative-dev \
+    libqt6svg6-dev \
+    qml6-module-qtquick-controls \
+    qml6-module-qtquick-templates \
+    qml6-module-qtquick-layouts \
+    qml6-module-qtqml-workerscript \
+    qml6-module-qtquick-window \
+    qml6-module-qtquick \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install system libraries
+RUN apt-get update && apt-get install -y \
+    libegl1-mesa-dev \
+    libgl1-mesa-dev \
+    libgles2-mesa-dev \
+    libglu1-mesa-dev \
+    libgbm-dev \
+    libdrm-dev \
+    libfreetype-dev \
+    libasound2-dev \
+    libdbus-1-dev \
+    libibus-1.0-dev \
+    libpulse-dev \
+    libudev-dev \
+    libx11-dev \
+    libxcursor-dev \
+    libxext-dev \
+    libxi-dev \
+    libxinerama-dev \
+    libxkbcommon-dev \
+    libxrandr-dev \
+    libxss-dev \
+    libxt-dev \
+    libxv-dev \
+    libxxf86vm-dev \
+    libxcb-dri3-dev \
+    libx11-xcb-dev \
+    wayland-protocols \
+    libopus-dev \
+    libvdpau-dev \
+    libgl-dev \
+    libpipewire-0.3-dev \
+    vulkan-sdk \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Vulkan SDK
+RUN wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add - && \
+    wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-jammy.list \
+    https://packages.lunarg.com/vulkan/1.4.313/lunarg-vulkan-1.4.313-jammy.list && \
+    apt-get update && \
+    apt-get install -y vulkan-sdk && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install meson via pip (newer version than apt)
+RUN pip3 install meson
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy entrypoint script that builds dependencies
+COPY docker/entrypoint-appimage.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Allow sudo without password for build user
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
+    useradd -m -s /bin/bash -G sudo builder || true
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["scripts/build-appimage.sh"]

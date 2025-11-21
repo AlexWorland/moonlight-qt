@@ -1768,6 +1768,23 @@ Flickable {
                     ToolTip.text: qsTr("Display real-time bitrate information while streaming.") + "\n\n" +
                                   qsTr("Shows current, average, and peak bitrate values.")
                 }
+
+                CheckBox {
+                    id: showSimplifiedStatsOverlay
+                    width: parent.width
+                    text: qsTr("Show simplified stats while streaming")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.showSimplifiedStatsOverlay
+                    onCheckedChanged: {
+                        StreamingPreferences.showSimplifiedStatsOverlay = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Display simplified stream statistics while streaming.") + "\n\n" +
+                                  qsTr("Shows FPS, codec, and bitrate information (current, average, peak over 5s, and max configured).")
+                }
             }
         }
     }

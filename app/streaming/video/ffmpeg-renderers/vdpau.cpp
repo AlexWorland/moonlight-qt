@@ -446,6 +446,11 @@ void VDPAURenderer::notifyOverlayUpdated(Overlay::OverlayType type)
             overlayRect.x0 = 0;
             overlayRect.y0 = 0;
         }
+        else if (type == Overlay::OverlaySimplifiedStats) {
+            // Top left (below other overlays if multiple are enabled)
+            overlayRect.x0 = 0;
+            overlayRect.y0 = 0;
+        }
 
         overlayRect.x1 = overlayRect.x0 + newSurface->w;
         overlayRect.y1 = overlayRect.y0 + newSurface->h;

@@ -228,6 +228,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(bool testOnly)
       m_ConsecutiveFailedDecodes(0),
       m_Pacer(nullptr),
       m_BwTracker(10, 250),
+      m_BwTracker5s(5, 250),
       m_FramesIn(0),
       m_FramesOut(0),
       m_LastFrameNumber(0),
@@ -1862,6 +1863,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
     }
 
     m_BwTracker.AddBytes(du->fullLength);
+    m_BwTracker5s.AddBytes(du->fullLength);
 
     // Flip stats windows roughly every second
     if (LiGetMicroseconds() > m_ActiveWndVideoStats.measurementStartUs + 1000000) {
@@ -1898,6 +1900,73 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
             
             Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayBitrate, bitrateText);
             Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayBitrate);
+        }
+
+        // Update simplified stats overlay if it's enabled
+        if (Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlaySimplifiedStats)) {
+            if (m_VideoDecoderCtx != nullptr && m_ActiveWndVideoStats.receivedFps > 0) {
+                const char* codecString;
+                switch (m_VideoFormat)
+                {
+                case VIDEO_FORMAT_H264:
+                    codecString = "H.264";
+                    break;
+                case VIDEO_FORMAT_H264_HIGH8_444:
+                    codecString = "H.264 4:4:4";
+                    break;
+                case VIDEO_FORMAT_H265:
+                    codecString = "HEVC";
+                    break;
+                case VIDEO_FORMAT_H265_REXT8_444:
+                    codecString = "HEVC 4:4:4";
+                    break;
+                case VIDEO_FORMAT_H265_MAIN10:
+                    codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR";
+                    break;
+                case VIDEO_FORMAT_H265_REXT10_444:
+                    codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR 4:4:4" : "HEVC 10-bit SDR 4:4:4";
+                    break;
+                case VIDEO_FORMAT_AV1_MAIN8:
+                    codecString = "AV1";
+                    break;
+                case VIDEO_FORMAT_AV1_HIGH8_444:
+                    codecString = "AV1 4:4:4";
+                    break;
+                case VIDEO_FORMAT_AV1_MAIN10:
+                    codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR" : "AV1 10-bit SDR";
+                    break;
+                case VIDEO_FORMAT_AV1_HIGH10_444:
+                    codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR 4:4:4" : "AV1 10-bit SDR 4:4:4";
+                    break;
+                default:
+                    codecString = "UNKNOWN";
+                    break;
+                }
+
+                int maxBitrateKbps = Session::get() ? Session::get()->getMaxBitrateLimit() : 0;
+                double currentLiveMbps = m_BwTracker5s.GetCurrentMbps();
+                double avgVideoMbps5s = m_BwTracker5s.GetAverageMbps();
+                double peakVideoMbps5s = m_BwTracker5s.GetPeakMbps();
+                
+                char simplifiedStatsText[512];
+                snprintf(simplifiedStatsText, sizeof(simplifiedStatsText),
+                        "FPS: %.2f\n"
+                        "Codec: %s\n"
+                        "Bitrate:\n"
+                        "  Current: %.1f Mbps\n"
+                        "  Avg (5s): %.1f Mbps\n"
+                        "  Peak (5s): %.1f Mbps\n"
+                        "  Max: %.1f Mbps",
+                        m_ActiveWndVideoStats.totalFps,
+                        codecString,
+                        currentLiveMbps,
+                        avgVideoMbps5s,
+                        peakVideoMbps5s,
+                        maxBitrateKbps / 1000.0);
+                
+                Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlaySimplifiedStats, simplifiedStatsText);
+                Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlaySimplifiedStats);
+            }
         }
 
         // Accumulate these values into the global stats

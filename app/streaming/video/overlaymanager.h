@@ -11,6 +11,7 @@ enum OverlayType {
     OverlayDebug,
     OverlayStatusUpdate,
     OverlayBitrate,
+    OverlaySimplifiedStats,
     OverlayMax
 };
 

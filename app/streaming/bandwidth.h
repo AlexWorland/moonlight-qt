@@ -72,6 +72,15 @@ public:
     double GetPeakMbps();
 
     /**
+     * @brief Returns the current bucket's bandwidth in Mbps.
+     *
+     * This returns the bitrate of the most recent bucket (the one currently being filled or most recently completed).
+     *
+     * @return The current bucket's bandwidth in megabits per second, or 0.0 if no data is available.
+     */
+    double GetCurrentMbps();
+
+    /**
      * @brief Retrieves the duration of the tracking window.
      *
      * This is useful when displaying the length of the peak, e.g.

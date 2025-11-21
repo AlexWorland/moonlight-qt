@@ -243,6 +243,11 @@ void EGLRenderer::renderOverlay(Overlay::OverlayType type, int viewportWidth, in
             // Top left (below debug overlay if both are enabled)
             overlayRect.x = 0;
             overlayRect.y = viewportHeight - newSurface->h;
+        }
+        else if (type == Overlay::OverlaySimplifiedStats) {
+            // Top left (below other overlays if multiple are enabled)
+            overlayRect.x = 0;
+            overlayRect.y = viewportHeight - newSurface->h;
         } else {
             SDL_assert(false);
         }

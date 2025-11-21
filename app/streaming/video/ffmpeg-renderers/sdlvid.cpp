@@ -250,6 +250,11 @@ void SdlRenderer::renderOverlay(Overlay::OverlayType type)
                 m_OverlayRects[type].x = 0;
                 m_OverlayRects[type].y = 0;
             }
+            else if (type == Overlay::OverlaySimplifiedStats) {
+                // Top left (below other overlays if multiple are enabled)
+                m_OverlayRects[type].x = 0;
+                m_OverlayRects[type].y = 0;
+            }
 
             m_OverlayRects[type].w = newSurface->w;
             m_OverlayRects[type].h = newSurface->h;

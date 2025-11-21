@@ -2030,6 +2030,7 @@ void Session::execInternal()
     // Toggle the stats overlay if requested by the user
     m_OverlayManager.setOverlayState(Overlay::OverlayDebug, m_Preferences->showPerformanceOverlay);
     m_OverlayManager.setOverlayState(Overlay::OverlayBitrate, m_Preferences->showBitrateOverlay);
+    m_OverlayManager.setOverlayState(Overlay::OverlaySimplifiedStats, m_Preferences->showSimplifiedStatsOverlay);
 
     // Switch to async logging mode when we enter the SDL loop
     StreamUtils::enterAsyncLoggingMode();

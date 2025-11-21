@@ -45,6 +45,13 @@
 #define SER_SHOWPERFOVERLAY "showperfoverlay"
 #define SER_SHOWBITRATEOVERLAY "showbitrateoverlay"
 #define SER_SHOWSIMPLIFIEDSTATSOVERLAY "showsimplifiedstatsoverlay"
+#define SER_SHOWSIMPLIFIEDSTATS_FPS "showsimplifiedstats_fps"
+#define SER_SHOWSIMPLIFIEDSTATS_CODEC "showsimplifiedstats_codec"
+#define SER_SHOWSIMPLIFIEDSTATS_BITRATE "showsimplifiedstats_bitrate"
+#define SER_SHOWSIMPLIFIEDSTATS_BITRATE_CURRENT "showsimplifiedstats_bitrate_current"
+#define SER_SHOWSIMPLIFIEDSTATS_BITRATE_AVG "showsimplifiedstats_bitrate_avg"
+#define SER_SHOWSIMPLIFIEDSTATS_BITRATE_PEAK "showsimplifiedstats_bitrate_peak"
+#define SER_SHOWSIMPLIFIEDSTATS_BITRATE_MAX "showsimplifiedstats_bitrate_max"
 #define SER_SWAPMOUSEBUTTONS "swapmousebuttons"
 #define SER_MUTEONFOCUSLOSS "muteonfocusloss"
 #define SER_BACKGROUNDGAMEPAD "backgroundgamepad"
@@ -144,6 +151,13 @@ void StreamingPreferences::reload()
     showPerformanceOverlay = settings.value(SER_SHOWPERFOVERLAY, false).toBool();
     showBitrateOverlay = settings.value(SER_SHOWBITRATEOVERLAY, false).toBool();
     showSimplifiedStatsOverlay = settings.value(SER_SHOWSIMPLIFIEDSTATSOVERLAY, false).toBool();
+    showSimplifiedStatsFps = settings.value(SER_SHOWSIMPLIFIEDSTATS_FPS, true).toBool();
+    showSimplifiedStatsCodec = settings.value(SER_SHOWSIMPLIFIEDSTATS_CODEC, true).toBool();
+    showSimplifiedStatsBitrate = settings.value(SER_SHOWSIMPLIFIEDSTATS_BITRATE, true).toBool();
+    showSimplifiedStatsBitrateCurrent = settings.value(SER_SHOWSIMPLIFIEDSTATS_BITRATE_CURRENT, true).toBool();
+    showSimplifiedStatsBitrateAvg = settings.value(SER_SHOWSIMPLIFIEDSTATS_BITRATE_AVG, true).toBool();
+    showSimplifiedStatsBitratePeak = settings.value(SER_SHOWSIMPLIFIEDSTATS_BITRATE_PEAK, true).toBool();
+    showSimplifiedStatsBitrateMax = settings.value(SER_SHOWSIMPLIFIEDSTATS_BITRATE_MAX, true).toBool();
     packetSize = settings.value(SER_PACKETSIZE, 0).toInt();
     swapMouseButtons = settings.value(SER_SWAPMOUSEBUTTONS, false).toBool();
     muteOnFocusLoss = settings.value(SER_MUTEONFOCUSLOSS, false).toBool();
@@ -345,6 +359,13 @@ void StreamingPreferences::save()
     settings.setValue(SER_SHOWPERFOVERLAY, showPerformanceOverlay);
     settings.setValue(SER_SHOWBITRATEOVERLAY, showBitrateOverlay);
     settings.setValue(SER_SHOWSIMPLIFIEDSTATSOVERLAY, showSimplifiedStatsOverlay);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_FPS, showSimplifiedStatsFps);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_CODEC, showSimplifiedStatsCodec);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_BITRATE, showSimplifiedStatsBitrate);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_BITRATE_CURRENT, showSimplifiedStatsBitrateCurrent);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_BITRATE_AVG, showSimplifiedStatsBitrateAvg);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_BITRATE_PEAK, showSimplifiedStatsBitratePeak);
+    settings.setValue(SER_SHOWSIMPLIFIEDSTATS_BITRATE_MAX, showSimplifiedStatsBitrateMax);
     settings.setValue(SER_AUDIOCFG, static_cast<int>(audioConfig));
     settings.setValue(SER_HDR, enableHdr);
     settings.setValue(SER_YUV444, enableYUV444);

@@ -131,6 +131,13 @@ public:
     Q_PROPERTY(bool showPerformanceOverlay MEMBER showPerformanceOverlay NOTIFY showPerformanceOverlayChanged)
     Q_PROPERTY(bool showBitrateOverlay MEMBER showBitrateOverlay NOTIFY showBitrateOverlayChanged)
     Q_PROPERTY(bool showSimplifiedStatsOverlay MEMBER showSimplifiedStatsOverlay NOTIFY showSimplifiedStatsOverlayChanged)
+    Q_PROPERTY(bool showSimplifiedStatsFps MEMBER showSimplifiedStatsFps NOTIFY showSimplifiedStatsFpsChanged)
+    Q_PROPERTY(bool showSimplifiedStatsCodec MEMBER showSimplifiedStatsCodec NOTIFY showSimplifiedStatsCodecChanged)
+    Q_PROPERTY(bool showSimplifiedStatsBitrate MEMBER showSimplifiedStatsBitrate NOTIFY showSimplifiedStatsBitrateChanged)
+    Q_PROPERTY(bool showSimplifiedStatsBitrateCurrent MEMBER showSimplifiedStatsBitrateCurrent NOTIFY showSimplifiedStatsBitrateCurrentChanged)
+    Q_PROPERTY(bool showSimplifiedStatsBitrateAvg MEMBER showSimplifiedStatsBitrateAvg NOTIFY showSimplifiedStatsBitrateAvgChanged)
+    Q_PROPERTY(bool showSimplifiedStatsBitratePeak MEMBER showSimplifiedStatsBitratePeak NOTIFY showSimplifiedStatsBitratePeakChanged)
+    Q_PROPERTY(bool showSimplifiedStatsBitrateMax MEMBER showSimplifiedStatsBitrateMax NOTIFY showSimplifiedStatsBitrateMaxChanged)
     Q_PROPERTY(AudioConfig audioConfig MEMBER audioConfig NOTIFY audioConfigChanged)
     Q_PROPERTY(VideoCodecConfig videoCodecConfig MEMBER videoCodecConfig NOTIFY videoCodecConfigChanged)
     Q_PROPERTY(bool enableHdr MEMBER enableHdr NOTIFY enableHdrChanged)
@@ -174,6 +181,13 @@ public:
     bool showPerformanceOverlay;
     bool showBitrateOverlay;
     bool showSimplifiedStatsOverlay;
+    bool showSimplifiedStatsFps;
+    bool showSimplifiedStatsCodec;
+    bool showSimplifiedStatsBitrate;
+    bool showSimplifiedStatsBitrateCurrent;
+    bool showSimplifiedStatsBitrateAvg;
+    bool showSimplifiedStatsBitratePeak;
+    bool showSimplifiedStatsBitrateMax;
     bool swapMouseButtons;
     bool muteOnFocusLoss;
     bool backgroundGamepad;
@@ -222,6 +236,13 @@ signals:
     void showPerformanceOverlayChanged();
     void showBitrateOverlayChanged();
     void showSimplifiedStatsOverlayChanged();
+    void showSimplifiedStatsFpsChanged();
+    void showSimplifiedStatsCodecChanged();
+    void showSimplifiedStatsBitrateChanged();
+    void showSimplifiedStatsBitrateCurrentChanged();
+    void showSimplifiedStatsBitrateAvgChanged();
+    void showSimplifiedStatsBitratePeakChanged();
+    void showSimplifiedStatsBitrateMaxChanged();
     void mouseButtonsChanged();
     void muteOnFocusLossChanged();
     void backgroundGamepadChanged();

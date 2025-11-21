@@ -1905,67 +1905,155 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         // Update simplified stats overlay if it's enabled
         if (Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlaySimplifiedStats)) {
             if (m_VideoDecoderCtx != nullptr && m_ActiveWndVideoStats.receivedFps > 0) {
-                const char* codecString;
-                switch (m_VideoFormat)
-                {
-                case VIDEO_FORMAT_H264:
-                    codecString = "H.264";
-                    break;
-                case VIDEO_FORMAT_H264_HIGH8_444:
-                    codecString = "H.264 4:4:4";
-                    break;
-                case VIDEO_FORMAT_H265:
-                    codecString = "HEVC";
-                    break;
-                case VIDEO_FORMAT_H265_REXT8_444:
-                    codecString = "HEVC 4:4:4";
-                    break;
-                case VIDEO_FORMAT_H265_MAIN10:
-                    codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR";
-                    break;
-                case VIDEO_FORMAT_H265_REXT10_444:
-                    codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR 4:4:4" : "HEVC 10-bit SDR 4:4:4";
-                    break;
-                case VIDEO_FORMAT_AV1_MAIN8:
-                    codecString = "AV1";
-                    break;
-                case VIDEO_FORMAT_AV1_HIGH8_444:
-                    codecString = "AV1 4:4:4";
-                    break;
-                case VIDEO_FORMAT_AV1_MAIN10:
-                    codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR" : "AV1 10-bit SDR";
-                    break;
-                case VIDEO_FORMAT_AV1_HIGH10_444:
-                    codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR 4:4:4" : "AV1 10-bit SDR 4:4:4";
-                    break;
-                default:
-                    codecString = "UNKNOWN";
-                    break;
+                Session* session = Session::get();
+                if (session == nullptr) {
+                    return;
+                }
+                
+                StreamingPreferences* prefs = session->getPreferences();
+                if (prefs == nullptr) {
+                    return;
                 }
 
-                int maxBitrateKbps = Session::get() ? Session::get()->getMaxBitrateLimit() : 0;
-                double currentLiveMbps = m_BwTracker5s.GetCurrentMbps();
-                double avgVideoMbps5s = m_BwTracker5s.GetAverageMbps();
-                double peakVideoMbps5s = m_BwTracker5s.GetPeakMbps();
-                
                 char simplifiedStatsText[512];
-                snprintf(simplifiedStatsText, sizeof(simplifiedStatsText),
-                        "FPS: %.2f\n"
-                        "Codec: %s\n"
-                        "Bitrate:\n"
-                        "  Current: %.1f Mbps\n"
-                        "  Avg (5s): %.1f Mbps\n"
-                        "  Peak (5s): %.1f Mbps\n"
-                        "  Max: %.1f Mbps",
-                        m_ActiveWndVideoStats.totalFps,
-                        codecString,
-                        currentLiveMbps,
-                        avgVideoMbps5s,
-                        peakVideoMbps5s,
-                        maxBitrateKbps / 1000.0);
-                
-                Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlaySimplifiedStats, simplifiedStatsText);
-                Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlaySimplifiedStats);
+                int offset = 0;
+                bool hasAnyContent = false;
+
+                // FPS
+                if (prefs->showSimplifiedStatsFps) {
+                    int ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                      "FPS: %.2f\n", m_ActiveWndVideoStats.totalFps);
+                    if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                        offset += ret;
+                        hasAnyContent = true;
+                    }
+                }
+
+                // Codec
+                if (prefs->showSimplifiedStatsCodec) {
+                    const char* codecString;
+                    switch (m_VideoFormat)
+                    {
+                    case VIDEO_FORMAT_H264:
+                        codecString = "H.264";
+                        break;
+                    case VIDEO_FORMAT_H264_HIGH8_444:
+                        codecString = "H.264 4:4:4";
+                        break;
+                    case VIDEO_FORMAT_H265:
+                        codecString = "HEVC";
+                        break;
+                    case VIDEO_FORMAT_H265_REXT8_444:
+                        codecString = "HEVC 4:4:4";
+                        break;
+                    case VIDEO_FORMAT_H265_MAIN10:
+                        codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR" : "HEVC 10-bit SDR";
+                        break;
+                    case VIDEO_FORMAT_H265_REXT10_444:
+                        codecString = LiGetCurrentHostDisplayHdrMode() ? "HEVC 10-bit HDR 4:4:4" : "HEVC 10-bit SDR 4:4:4";
+                        break;
+                    case VIDEO_FORMAT_AV1_MAIN8:
+                        codecString = "AV1";
+                        break;
+                    case VIDEO_FORMAT_AV1_HIGH8_444:
+                        codecString = "AV1 4:4:4";
+                        break;
+                    case VIDEO_FORMAT_AV1_MAIN10:
+                        codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR" : "AV1 10-bit SDR";
+                        break;
+                    case VIDEO_FORMAT_AV1_HIGH10_444:
+                        codecString = LiGetCurrentHostDisplayHdrMode() ? "AV1 10-bit HDR 4:4:4" : "AV1 10-bit SDR 4:4:4";
+                        break;
+                    default:
+                        codecString = "UNKNOWN";
+                        break;
+                    }
+                    
+                    int ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                      "Codec: %s\n", codecString);
+                    if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                        offset += ret;
+                        hasAnyContent = true;
+                    }
+                }
+
+                // Bitrate section
+                if (prefs->showSimplifiedStatsBitrate) {
+                    bool hasBitrateItems = false;
+                    
+                    // Check if any bitrate sub-items are enabled
+                    if (prefs->showSimplifiedStatsBitrateCurrent ||
+                        prefs->showSimplifiedStatsBitrateAvg ||
+                        prefs->showSimplifiedStatsBitratePeak ||
+                        prefs->showSimplifiedStatsBitrateMax) {
+                        
+                        int ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                          "Bitrate:\n");
+                        if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                            offset += ret;
+                            hasBitrateItems = true;
+                        }
+
+                        int maxBitrateKbps = session->getMaxBitrateLimit();
+                        double currentLiveMbps = m_BwTracker5s.GetCurrentMbps();
+                        double avgVideoMbps5s = m_BwTracker5s.GetAverageMbps();
+                        double peakVideoMbps5s = m_BwTracker5s.GetPeakMbps();
+
+                        // Current
+                        if (prefs->showSimplifiedStatsBitrateCurrent) {
+                            ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                          "  Current: %.1f Mbps\n", currentLiveMbps);
+                            if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                                offset += ret;
+                            }
+                        }
+
+                        // Avg (5s)
+                        if (prefs->showSimplifiedStatsBitrateAvg) {
+                            ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                          "  Avg (5s): %.1f Mbps\n", avgVideoMbps5s);
+                            if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                                offset += ret;
+                            }
+                        }
+
+                        // Peak (5s)
+                        if (prefs->showSimplifiedStatsBitratePeak) {
+                            ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                          "  Peak (5s): %.1f Mbps\n", peakVideoMbps5s);
+                            if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                                offset += ret;
+                            }
+                        }
+
+                        // Max
+                        if (prefs->showSimplifiedStatsBitrateMax) {
+                            ret = snprintf(&simplifiedStatsText[offset], sizeof(simplifiedStatsText) - offset,
+                                          "  Max: %.1f Mbps", maxBitrateKbps / 1000.0);
+                            if (ret > 0 && ret < sizeof(simplifiedStatsText) - offset) {
+                                offset += ret;
+                            }
+                        }
+
+                        if (hasBitrateItems) {
+                            hasAnyContent = true;
+                        }
+                    }
+                }
+
+                // Only update overlay if there's content to display
+                if (hasAnyContent) {
+                    // Remove trailing newline if present
+                    if (offset > 0 && simplifiedStatsText[offset - 1] == '\n') {
+                        simplifiedStatsText[offset - 1] = '\0';
+                    }
+                    Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlaySimplifiedStats, simplifiedStatsText);
+                    Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlaySimplifiedStats);
+                } else {
+                    // Clear overlay if nothing is enabled
+                    Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlaySimplifiedStats, "");
+                    Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlaySimplifiedStats);
+                }
             }
         }
 

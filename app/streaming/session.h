@@ -134,6 +134,11 @@ public:
         return m_Preferences->bitrateKbps;
     }
 
+    StreamingPreferences* getPreferences() const
+    {
+        return m_Preferences;
+    }
+
 signals:
     void stageStarting(QString stage);
 

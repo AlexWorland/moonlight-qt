@@ -1785,6 +1785,101 @@ Flickable {
                     ToolTip.text: qsTr("Display simplified stream statistics while streaming.") + "\n\n" +
                                   qsTr("Shows FPS, codec, and bitrate information (current, average, peak over 5s, and max configured).")
                 }
+
+                Column {
+                    id: simplifiedStatsOptions
+                    width: parent.width
+                    visible: showSimplifiedStatsOverlay.checked
+                    anchors.left: parent.left
+                    anchors.leftMargin: 20
+                    spacing: 5
+
+                    CheckBox {
+                        id: showSimplifiedStatsFps
+                        width: parent.width
+                        text: qsTr("FPS")
+                        font.pointSize: 11
+                        checked: StreamingPreferences.showSimplifiedStatsFps
+                        onCheckedChanged: {
+                            StreamingPreferences.showSimplifiedStatsFps = checked
+                        }
+                    }
+
+                    CheckBox {
+                        id: showSimplifiedStatsCodec
+                        width: parent.width
+                        text: qsTr("Codec")
+                        font.pointSize: 11
+                        checked: StreamingPreferences.showSimplifiedStatsCodec
+                        onCheckedChanged: {
+                            StreamingPreferences.showSimplifiedStatsCodec = checked
+                        }
+                    }
+
+                    CheckBox {
+                        id: showSimplifiedStatsBitrate
+                        width: parent.width
+                        text: qsTr("Bitrate")
+                        font.pointSize: 11
+                        checked: StreamingPreferences.showSimplifiedStatsBitrate
+                        onCheckedChanged: {
+                            StreamingPreferences.showSimplifiedStatsBitrate = checked
+                        }
+                    }
+
+                    Column {
+                        id: bitrateSubOptions
+                        width: parent.width
+                        visible: showSimplifiedStatsBitrate.checked
+                        anchors.left: parent.left
+                        anchors.leftMargin: 20
+                        spacing: 5
+
+                        CheckBox {
+                            id: showSimplifiedStatsBitrateCurrent
+                            width: parent.width
+                            text: qsTr("Current")
+                            font.pointSize: 10
+                            checked: StreamingPreferences.showSimplifiedStatsBitrateCurrent
+                            onCheckedChanged: {
+                                StreamingPreferences.showSimplifiedStatsBitrateCurrent = checked
+                            }
+                        }
+
+                        CheckBox {
+                            id: showSimplifiedStatsBitrateAvg
+                            width: parent.width
+                            text: qsTr("Avg (5s)")
+                            font.pointSize: 10
+                            checked: StreamingPreferences.showSimplifiedStatsBitrateAvg
+                            onCheckedChanged: {
+                                StreamingPreferences.showSimplifiedStatsBitrateAvg = checked
+                            }
+                        }
+
+                        CheckBox {
+                            id: showSimplifiedStatsBitratePeak
+                            width: parent.width
+                            text: qsTr("Peak (5s)")
+                            font.pointSize: 10
+                            checked: StreamingPreferences.showSimplifiedStatsBitratePeak
+                            onCheckedChanged: {
+                                StreamingPreferences.showSimplifiedStatsBitratePeak = checked
+                            }
+                        }
+
+                        CheckBox {
+                            id: showSimplifiedStatsBitrateMax
+                            width: parent.width
+                            text: qsTr("Max")
+                            font.pointSize: 10
+                            checked: StreamingPreferences.showSimplifiedStatsBitrateMax
+                            onCheckedChanged: {
+                                StreamingPreferences.showSimplifiedStatsBitrateMax = checked
+                            }
+                        }
+                    }
+                }
             }
         }
     }

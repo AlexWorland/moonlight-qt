@@ -54,6 +54,8 @@
 #include <QCursor>
 #include <QWindow>
 #include <QScreen>
+#include <QString>
+#include <QStringList>
 
 #define CONN_TEST_SERVER "qt.conntest.moonlight-stream.org"
 
@@ -70,7 +72,8 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
     Session::clRumbleTriggers,
     Session::clSetMotionEventState,
     Session::clSetControllerLED,
-    Session::clSetAdaptiveTriggers
+    Session::clSetAdaptiveTriggers,
+    Session::clRtspFeatures  // RTSP feature callback (requires moonlight-common-c support)
 };
 
 Session* Session::s_ActiveSession;
@@ -177,6 +180,45 @@ void Session::clRumble(unsigned short controllerNumber, unsigned short lowFreqMo
     rumbleEvent.user.data1 = (void*)(uintptr_t)controllerNumber;
     rumbleEvent.user.data2 = (void*)(uintptr_t)((lowFreqMotor << 16) | highFreqMotor);
     SDL_PushEvent(&rumbleEvent);
+}
+
+void Session::clRtspFeatures(const char* features)
+{
+    Session* session = s_ActiveSession;
+    if (!session) return;
+    
+    QString featuresStr = QString::fromUtf8(features);
+    // Parse "DYNAMIC_BITRATE=1" from comma-separated list
+    QStringList featureList = featuresStr.split(',');
+    for (const QString& feature : featureList) {
+        QStringList parts = feature.split('=');
+        if (parts.size() == 2 && parts[0].trimmed() == "DYNAMIC_BITRATE") {
+            session->m_HostSupportsDynamicBitrate = (parts[1].trimmed() == "1");
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                       "Host supports dynamic bitrate: %s",
+                       session->m_HostSupportsDynamicBitrate ? "yes" : "no");
+            break;
+        }
+    }
+}
+
+void Session::sendAutoBitrateUpdate(int targetKbps, int connectionStatus)
+{
+    if (!m_HostSupportsDynamicBitrate) {
+        return; // Host doesn't support it
+    }
+    
+    int result = LiSendAutoBitrateUpdate((uint32_t)targetKbps, 
+                                         (connectionStatus == CONN_STATUS_POOR) ? 1 : 0);
+    if (result != 0) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                   "Failed to send auto bitrate update: %d", result);
+        return;
+    }
+    
+    SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                "Auto bitrate update sent: %d Kbps, status: %d",
+                targetKbps, connectionStatus);
 }
 
 void Session::clConnectionStatusUpdate(int connectionStatus)
@@ -691,6 +733,11 @@ bool Session::initialize()
     m_LastBitrateCheckTime = SDL_GetTicks();
     m_LastConnectionStatus = CONN_STATUS_OKAY;
     m_AutoAdjustBitrateActive = m_Preferences->autoAdjustBitrate;
+    
+    // Initialize hybrid auto bitrate state
+    m_HostSupportsDynamicBitrate = false;  // Will be set when RTSP feature flag is parsed
+    m_LastSentBitrate = 0;
+    m_LastSentConnectionStatus = -1;
 
 #ifndef STEAM_LINK
     // Opt-in to all encryption features if we detect that the platform
@@ -2072,6 +2119,27 @@ void Session::execInternal()
                 
                 m_CurrentAdjustedBitrate = adjustedBitrate;
                 lastBitrateCheckTime = currentTime;
+                
+                // Send bitrate update to host if supported
+                if (m_AutoAdjustBitrateActive && 
+                    m_Preferences->autoAdjustBitrate &&
+                    m_HostSupportsDynamicBitrate) {
+                    
+                    // Check if we should send update
+                    int lastSent = m_LastSentBitrate;
+                    int current = m_CurrentAdjustedBitrate;
+                    int delta = abs(current - lastSent);
+                    int threshold = (lastSent > 0) ? (lastSent * 5) / 100 : 1000; // 5% threshold, or 1 Mbps minimum
+                    
+                    bool statusChanged = (m_LastConnectionStatus != m_LastSentConnectionStatus);
+                    bool significantDelta = (delta >= threshold);
+                    
+                    if (statusChanged || significantDelta) {
+                        sendAutoBitrateUpdate(current, m_LastConnectionStatus);
+                        m_LastSentBitrate = current;
+                        m_LastSentConnectionStatus = m_LastConnectionStatus;
+                    }
+                }
             }
         }
         

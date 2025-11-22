@@ -185,6 +185,8 @@ private:
 
     void notifyMouseEmulationMode(bool enabled);
 
+    void sendAutoBitrateUpdate(int targetKbps, int connectionStatus);
+
     void updateOptimalWindowDisplayMode();
 
     enum class DecoderAvailability {
@@ -237,6 +239,9 @@ private:
 
     static
     void clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlags, uint8_t typeLeft, uint8_t typeRight, uint8_t *left, uint8_t *right);
+
+    static
+    void clRtspFeatures(const char* features);
 
     static
     int arInit(int audioConfiguration,
@@ -303,6 +308,11 @@ private:
     int m_LastBitrateCheckTime;
     int m_LastConnectionStatus;
     bool m_AutoAdjustBitrateActive;
+    
+    // Hybrid auto bitrate state (for host-side enforcement)
+    bool m_HostSupportsDynamicBitrate;
+    int m_LastSentBitrate;
+    int m_LastSentConnectionStatus;
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;

@@ -854,12 +854,13 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
 
 #ifdef DISPLAY_BITRATE
             // Bitrate stats (only if DISPLAY_BITRATE is defined)
+            bool showBitrateStats = !prefs || !prefs->showBitrateOverlay;
             double avgVideoMbps = m_BwTracker.GetAverageMbps();
             double peakVideoMbps = m_BwTracker.GetPeakMbps();
             int currentBitrateKbps = Session::get() ? Session::get()->getCurrentAdjustedBitrate() : 0;
             int maxBitrateKbps = Session::get() ? Session::get()->getMaxBitrateLimit() : 0;
 
-            if (!prefs || prefs->showStatsCurrentBitrate) {
+            if (showBitrateStats && (!prefs || prefs->showStatsCurrentBitrate)) {
                 ret = snprintf(&output[offset],
                                length - offset,
                                "Current bitrate: %.1f Mbps\n",
@@ -871,7 +872,7 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
                 offset += ret;
             }
 
-            if (!prefs || prefs->showStatsMaxBitrate) {
+            if (showBitrateStats && (!prefs || prefs->showStatsMaxBitrate)) {
                 ret = snprintf(&output[offset],
                                length - offset,
                                "Max bitrate limit: %.1f Mbps\n",
@@ -883,7 +884,7 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
                 offset += ret;
             }
 
-            if (!prefs || prefs->showStatsAvgBitrate) {
+            if (showBitrateStats && (!prefs || prefs->showStatsAvgBitrate)) {
                 ret = snprintf(&output[offset],
                                length - offset,
                                "Average bitrate: %.1f Mbps\n",
@@ -895,7 +896,7 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
                 offset += ret;
             }
 
-            if (!prefs || prefs->showStatsPeakBitrate) {
+            if (showBitrateStats && (!prefs || prefs->showStatsPeakBitrate)) {
                 ret = snprintf(&output[offset],
                                length - offset,
                                "Peak bitrate (%us): %.1f Mbps\n",

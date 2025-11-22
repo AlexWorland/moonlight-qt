@@ -856,14 +856,14 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
             // Bitrate stats (only if DISPLAY_BITRATE is defined)
             double avgVideoMbps = m_BwTracker.GetAverageMbps();
             double peakVideoMbps = m_BwTracker.GetPeakMbps();
-            int currentBitrateKbps = Session::get() ? Session::get()->getCurrentAdjustedBitrate() : 0;
+            double currentVideoMbps = m_BwTracker.GetCurrentMbps();
             int maxBitrateKbps = Session::get() ? Session::get()->getMaxBitrateLimit() : 0;
 
             if (!prefs || prefs->showStatsCurrentBitrate) {
                 ret = snprintf(&output[offset],
                                length - offset,
                                "Current bitrate: %.1f Mbps\n",
-                               currentBitrateKbps / 1000.0);
+                               currentVideoMbps);
                 if (ret < 0 || ret >= length - offset) {
                     SDL_assert(false);
                     return;
@@ -1998,7 +1998,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         // Update bitrate overlay if it's enabled
         if (Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlayBitrate)) {
             StreamingPreferences* prefs = Session::get()->getPreferences();
-            int currentBitrateKbps = Session::get()->getCurrentAdjustedBitrate();
+            double currentVideoMbps = m_BwTracker.GetCurrentMbps();
             int maxBitrateKbps = Session::get()->getMaxBitrateLimit();
             double avgVideoMbps = m_BwTracker.GetAverageMbps();
             double peakVideoMbps = m_BwTracker.GetPeakMbps();
@@ -2012,7 +2012,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
                 int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
                         "%sCurrent bitrate: %.1f Mbps",
                         firstStat ? "" : "\n",
-                        currentBitrateKbps / 1000.0);
+                        currentVideoMbps);
                 if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
                     SDL_assert(false);
                     return DR_OK;

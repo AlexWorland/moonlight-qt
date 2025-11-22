@@ -63,6 +63,15 @@ public:
     double GetAverageMbps();
 
     /**
+     * @brief Computes and returns the most recent fully completed bucket's bandwidth in Mbps.
+     *
+     * This represents the most current instantaneous throughput measurement available.
+     *
+     * @return The current bandwidth in megabits per second.
+     */
+    double GetCurrentMbps();
+
+    /**
      * @brief Returns the peak bandwidth in Mbps observed in any single bucket within the current window.
      *
      * This value represents the highest instantaneous throughput measured over one bucket interval.

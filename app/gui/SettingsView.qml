@@ -682,6 +682,34 @@ Flickable {
                     wrapMode: Text.Wrap
                 }
 
+                CheckBox {
+                    id: autoBitrateCheckbox
+                    width: parent.width
+                    text: qsTr("Enable automatic bitrate")
+                    font.pointSize: 12
+
+                    checked: StreamingPreferences.autoAdjustBitrate
+                    onCheckedChanged: {
+                        if (StreamingPreferences.autoAdjustBitrate !== checked) {
+                            StreamingPreferences.autoAdjustBitrate = checked
+
+                            if (checked) {
+                                var autoBitrate = 100000
+                                StreamingPreferences.bitrateKbps = autoBitrate
+                                slider.value = autoBitrate
+                            }
+                        }
+                    }
+
+                    Component.onCompleted: {
+                        if (checked) {
+                            var autoBitrate = 100000
+                            StreamingPreferences.bitrateKbps = autoBitrate
+                            slider.value = autoBitrate
+                        }
+                    }
+                }
+
                 Row {
                     width: parent.width
                     spacing: 5
@@ -690,6 +718,8 @@ Flickable {
                         id: slider
 
                         value: StreamingPreferences.bitrateKbps
+
+                        enabled: !StreamingPreferences.autoAdjustBitrate
 
                         stepSize: 500
                         from : 500
@@ -717,10 +747,10 @@ Flickable {
                         id: resetBitrateButton
                         text: qsTr("Use Default (%1 Mbps)").arg(StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444) / 1000.0)
                         visible: StreamingPreferences.bitrateKbps !== StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444)
+                        enabled: !StreamingPreferences.autoAdjustBitrate
                         onClicked: {
                             var defaultBitrate = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width, StreamingPreferences.height, StreamingPreferences.fps, StreamingPreferences.enableYUV444)
                             StreamingPreferences.bitrateKbps = defaultBitrate
-                            StreamingPreferences.autoAdjustBitrate = true
                             slider.value = defaultBitrate
                         }
                     }
@@ -1666,8 +1696,8 @@ Flickable {
                             StreamingPreferences.enableYUV444 = checked
                             if (StreamingPreferences.autoAdjustBitrate) {
                                 StreamingPreferences.bitrateKbps = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width,
-                                                                                                          StreamingPreferences.height,
-                                                                                                          StreamingPreferences.fps,
+                                                                                                         StreamingPreferences.height,
+                                                                                                         StreamingPreferences.fps,
                                                                                                           StreamingPreferences.enableYUV444);
                                 slider.value = StreamingPreferences.bitrateKbps
                             }

@@ -136,7 +136,7 @@ public:
 
     int getMaxBitrateLimit() const
     {
-        return m_Preferences->bitrateKbps;
+        return getCurrentAdjustedBitrate();
     }
 
 signals:

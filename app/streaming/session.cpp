@@ -2044,7 +2044,6 @@ void Session::execInternal()
         if (m_AutoAdjustBitrateActive && m_Preferences->autoAdjustBitrate) {
             Uint32 timeSinceLastCheck = currentTime - lastBitrateCheckTime;
             if (timeSinceLastCheck >= 1000) {
-                int originalBitrate = m_Preferences->bitrateKbps;
                 int adjustedBitrate = m_CurrentAdjustedBitrate;
                 
                 // Use the last known connection status
@@ -2056,14 +2055,10 @@ void Session::execInternal()
                                "Poor network conditions detected. Reducing bitrate from %d to %d kbps",
                                m_CurrentAdjustedBitrate, adjustedBitrate);
                     break;
-                    
+
                 case CONN_STATUS_OKAY:
                     // Increase bitrate by quarter (exponential growth)
                     adjustedBitrate = (int)(adjustedBitrate * 1.25f);
-                    // Don't exceed the original/user-set bitrate
-                    if (adjustedBitrate > originalBitrate) {
-                        adjustedBitrate = originalBitrate;
-                    }
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                                "Good network conditions detected. Increasing bitrate from %d to %d kbps",
                                m_CurrentAdjustedBitrate, adjustedBitrate);

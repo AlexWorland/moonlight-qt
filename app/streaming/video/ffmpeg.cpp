@@ -235,11 +235,13 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(bool testOnly)
       m_VideoFormat(0),
       m_NeedsSpsFixup(false),
       m_TestOnly(testOnly),
-      m_DecoderThread(nullptr)
+      m_DecoderThread(nullptr),
+      m_LastReportedMaxBitrateKbps(0)
 {
     SDL_zero(m_ActiveWndVideoStats);
     SDL_zero(m_LastWndVideoStats);
     SDL_zero(m_GlobalVideoStats);
+    m_LastReportedMaxBitrateKbps = 0;
 
     SDL_AtomicSet(&m_DecoderThreadShouldQuit, 0);
 
@@ -1982,6 +1984,85 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
 
     m_BwTracker.AddBytes(du->fullLength);
 
+    auto updateBitrateOverlay = [&](int maxBitrateKbps) -> int {
+        if (!Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlayBitrate)) {
+            return DR_OK;
+        }
+
+        StreamingPreferences* prefs = Session::get()->getPreferences();
+        double currentVideoMbps = m_BwTracker.GetCurrentMbps();
+        double avgVideoMbps = m_BwTracker.GetAverageMbps();
+        double peakVideoMbps = m_BwTracker.GetPeakMbps();
+
+        char bitrateText[256];
+        int offset = 0;
+        bool firstStat = true;
+
+        // Build bitrate text conditionally based on preferences
+        if (!prefs || prefs->showBitrateCurrent) {
+            int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
+                    "%sCurrent bitrate: %.1f Mbps",
+                    firstStat ? "" : "\n",
+                    currentVideoMbps);
+            if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
+                SDL_assert(false);
+                return DR_OK;
+            }
+            offset += ret;
+            firstStat = false;
+        }
+
+        if (!prefs || prefs->showBitrateMax) {
+            int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
+                    "%sMax bitrate limit: %.1f Mbps",
+                    firstStat ? "" : "\n",
+                    maxBitrateKbps / 1000.0);
+            if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
+                SDL_assert(false);
+                return DR_OK;
+            }
+            offset += ret;
+            firstStat = false;
+        }
+
+        if (!prefs || prefs->showBitrateAverage) {
+            int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
+                    "%sAverage bitrate: %.1f Mbps",
+                    firstStat ? "" : "\n",
+                    avgVideoMbps);
+            if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
+                SDL_assert(false);
+                return DR_OK;
+            }
+            offset += ret;
+            firstStat = false;
+        }
+
+        if (!prefs || prefs->showBitratePeak) {
+            int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
+                    "%sPeak bitrate (%us): %.1f Mbps",
+                    firstStat ? "" : "\n",
+                    m_BwTracker.GetWindowSeconds(),
+                    peakVideoMbps);
+            if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
+                SDL_assert(false);
+                return DR_OK;
+            }
+            offset += ret;
+            firstStat = false;
+        }
+
+        bitrateText[offset] = '\0';
+
+        Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayBitrate, bitrateText);
+        Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayBitrate);
+        m_LastReportedMaxBitrateKbps = maxBitrateKbps;
+        return DR_OK;
+    };
+
+    const int currentMaxBitrateKbps = Session::get()->getMaxBitrateLimit();
+    const bool bitrateLimitChanged = currentMaxBitrateKbps != m_LastReportedMaxBitrateKbps;
+
     // Flip stats windows roughly every second
     if (LiGetMicroseconds() > m_ActiveWndVideoStats.measurementStartUs + 1000000) {
         // Update overlay stats if it's enabled
@@ -1995,77 +2076,10 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
                                 Session::get()->getOverlayManager().getOverlayMaxTextLength());
             Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayDebug);
         }
-        
+
         // Update bitrate overlay if it's enabled
-        if (Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlayBitrate)) {
-            StreamingPreferences* prefs = Session::get()->getPreferences();
-            double currentVideoMbps = m_BwTracker.GetCurrentMbps();
-            int maxBitrateKbps = Session::get()->getMaxBitrateLimit();
-            double avgVideoMbps = m_BwTracker.GetAverageMbps();
-            double peakVideoMbps = m_BwTracker.GetPeakMbps();
-            
-            char bitrateText[256];
-            int offset = 0;
-            bool firstStat = true;
-            
-            // Build bitrate text conditionally based on preferences
-            if (!prefs || prefs->showBitrateCurrent) {
-                int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
-                        "%sCurrent bitrate: %.1f Mbps",
-                        firstStat ? "" : "\n",
-                        currentVideoMbps);
-                if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
-                    SDL_assert(false);
-                    return DR_OK;
-                }
-                offset += ret;
-                firstStat = false;
-            }
-            
-            if (!prefs || prefs->showBitrateMax) {
-                int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
-                        "%sMax bitrate limit: %.1f Mbps",
-                        firstStat ? "" : "\n",
-                        maxBitrateKbps / 1000.0);
-                if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
-                    SDL_assert(false);
-                    return DR_OK;
-                }
-                offset += ret;
-                firstStat = false;
-            }
-            
-            if (!prefs || prefs->showBitrateAverage) {
-                int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
-                        "%sAverage bitrate: %.1f Mbps",
-                        firstStat ? "" : "\n",
-                        avgVideoMbps);
-                if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
-                    SDL_assert(false);
-                    return DR_OK;
-                }
-                offset += ret;
-                firstStat = false;
-            }
-            
-            if (!prefs || prefs->showBitratePeak) {
-                int ret = snprintf(&bitrateText[offset], sizeof(bitrateText) - offset,
-                        "%sPeak bitrate (%us): %.1f Mbps",
-                        firstStat ? "" : "\n",
-                        m_BwTracker.GetWindowSeconds(),
-                        peakVideoMbps);
-                if (ret < 0 || ret >= sizeof(bitrateText) - offset) {
-                    SDL_assert(false);
-                    return DR_OK;
-                }
-                offset += ret;
-                firstStat = false;
-            }
-            
-            bitrateText[offset] = '\0';
-            
-            Session::get()->getOverlayManager().updateOverlayText(Overlay::OverlayBitrate, bitrateText);
-            Session::get()->getOverlayManager().setOverlayTextUpdated(Overlay::OverlayBitrate);
+        if (updateBitrateOverlay(currentMaxBitrateKbps) != DR_OK) {
+            return DR_OK;
         }
 
         // Accumulate these values into the global stats
@@ -2075,6 +2089,12 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         SDL_memcpy(&m_LastWndVideoStats, &m_ActiveWndVideoStats, sizeof(m_ActiveWndVideoStats));
         SDL_zero(m_ActiveWndVideoStats);
         m_ActiveWndVideoStats.measurementStartUs = LiGetMicroseconds();
+    }
+    else if (bitrateLimitChanged) {
+        // Refresh the overlay immediately if the bitrate ceiling shifts between periodic updates
+        if (updateBitrateOverlay(currentMaxBitrateKbps) != DR_OK) {
+            return DR_OK;
+        }
     }
 
     if (du->frameHostProcessingLatency != 0) {

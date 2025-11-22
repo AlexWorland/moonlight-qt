@@ -281,7 +281,7 @@ Flickable {
                                 StreamingPreferences.width = selectedWidth
                                 StreamingPreferences.height = selectedHeight
 
-                                if (!StreamingPreferences.autoAdjustBitrate) {
+                                if (StreamingPreferences.autoAdjustBitrate) {
                                     StreamingPreferences.bitrateKbps = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width,
                                                                                                               StreamingPreferences.height,
                                                                                                               StreamingPreferences.fps,
@@ -449,7 +449,7 @@ Flickable {
                             if (StreamingPreferences.fps !== selectedFps) {
                                 StreamingPreferences.fps = selectedFps
 
-                                if (!StreamingPreferences.autoAdjustBitrate) {
+                                if (StreamingPreferences.autoAdjustBitrate) {
                                     StreamingPreferences.bitrateKbps = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width,
                                                                                                               StreamingPreferences.height,
                                                                                                               StreamingPreferences.fps,
@@ -1694,10 +1694,10 @@ Flickable {
                         // This is called on init, so only reset to default bitrate when checked state changes.
                         if (StreamingPreferences.enableYUV444 != checked) {
                             StreamingPreferences.enableYUV444 = checked
-                            if (!StreamingPreferences.autoAdjustBitrate) {
+                            if (StreamingPreferences.autoAdjustBitrate) {
                                 StreamingPreferences.bitrateKbps = StreamingPreferences.getDefaultBitrate(StreamingPreferences.width,
-                                                                                                          StreamingPreferences.height,
-                                                                                                          StreamingPreferences.fps,
+                                                                                                         StreamingPreferences.height,
+                                                                                                         StreamingPreferences.fps,
                                                                                                           StreamingPreferences.enableYUV444);
                                 slider.value = StreamingPreferences.bitrateKbps
                             }

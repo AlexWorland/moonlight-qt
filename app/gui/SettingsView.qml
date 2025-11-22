@@ -1792,59 +1792,6 @@ Flickable {
                         }
                     }
 
-                    // Bitrate group
-                    Label {
-                        width: parent.width
-                        text: qsTr("Bitrate Information:")
-                        font.pointSize: 10
-                        font.italic: true
-                        wrapMode: Text.Wrap
-                    }
-
-                    CheckBox {
-                        width: parent.width
-                        text: qsTr("Current bitrate")
-                        font.pointSize: 11
-                        checked: StreamingPreferences.showStatsCurrentBitrate
-                        onCheckedChanged: {
-                            StreamingPreferences.showStatsCurrentBitrate = checked
-                            StreamingPreferences.save()
-                        }
-                    }
-
-                    CheckBox {
-                        width: parent.width
-                        text: qsTr("Max bitrate limit")
-                        font.pointSize: 11
-                        checked: StreamingPreferences.showStatsMaxBitrate
-                        onCheckedChanged: {
-                            StreamingPreferences.showStatsMaxBitrate = checked
-                            StreamingPreferences.save()
-                        }
-                    }
-
-                    CheckBox {
-                        width: parent.width
-                        text: qsTr("Average bitrate")
-                        font.pointSize: 11
-                        checked: StreamingPreferences.showStatsAvgBitrate
-                        onCheckedChanged: {
-                            StreamingPreferences.showStatsAvgBitrate = checked
-                            StreamingPreferences.save()
-                        }
-                    }
-
-                    CheckBox {
-                        width: parent.width
-                        text: qsTr("Peak bitrate")
-                        font.pointSize: 11
-                        checked: StreamingPreferences.showStatsPeakBitrate
-                        onCheckedChanged: {
-                            StreamingPreferences.showStatsPeakBitrate = checked
-                            StreamingPreferences.save()
-                        }
-                    }
-
                     // Frame rates group
                     Label {
                         width: parent.width
@@ -2013,7 +1960,7 @@ Flickable {
                 Column {
                     width: parent.width
                     spacing: 5
-                    visible: showBitrateOverlay.checked
+                    visible: showBitrateOverlay.checked || showPerformanceOverlay.checked
 
                     Rectangle {
                         width: parent.width
@@ -2036,6 +1983,7 @@ Flickable {
                         checked: StreamingPreferences.showBitrateCurrent
                         onCheckedChanged: {
                             StreamingPreferences.showBitrateCurrent = checked
+                            StreamingPreferences.showStatsCurrentBitrate = checked
                             StreamingPreferences.save()
                         }
                     }
@@ -2047,6 +1995,7 @@ Flickable {
                         checked: StreamingPreferences.showBitrateMax
                         onCheckedChanged: {
                             StreamingPreferences.showBitrateMax = checked
+                            StreamingPreferences.showStatsMaxBitrate = checked
                             StreamingPreferences.save()
                         }
                     }
@@ -2058,6 +2007,7 @@ Flickable {
                         checked: StreamingPreferences.showBitrateAverage
                         onCheckedChanged: {
                             StreamingPreferences.showBitrateAverage = checked
+                            StreamingPreferences.showStatsAvgBitrate = checked
                             StreamingPreferences.save()
                         }
                     }
@@ -2069,6 +2019,7 @@ Flickable {
                         checked: StreamingPreferences.showBitratePeak
                         onCheckedChanged: {
                             StreamingPreferences.showBitratePeak = checked
+                            StreamingPreferences.showStatsPeakBitrate = checked
                             StreamingPreferences.save()
                         }
                     }

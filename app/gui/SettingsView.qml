@@ -694,7 +694,7 @@ Flickable {
                             StreamingPreferences.autoAdjustBitrate = checked
 
                             if (checked) {
-                                var autoBitrate = 100000
+                                var autoBitrate = StreamingPreferences.getMaxBitrateKbps()
                                 StreamingPreferences.bitrateKbps = autoBitrate
                                 slider.value = autoBitrate
                             }
@@ -703,7 +703,7 @@ Flickable {
 
                     Component.onCompleted: {
                         if (checked) {
-                            var autoBitrate = 100000
+                            var autoBitrate = StreamingPreferences.getMaxBitrateKbps()
                             StreamingPreferences.bitrateKbps = autoBitrate
                             slider.value = autoBitrate
                         }
@@ -722,8 +722,8 @@ Flickable {
                         enabled: !StreamingPreferences.autoAdjustBitrate
 
                         stepSize: 500
-                        from : 500
-                        to: StreamingPreferences.unlockBitrate ? 2500000 : 150000
+                        from : StreamingPreferences.getMinBitrateKbps()
+                        to: StreamingPreferences.getMaxBitrateKbps()
 
                         snapMode: "SnapOnRelease"
                         width: Math.min(bitrateDesc.implicitWidth, parent.width - (resetBitrateButton.visible ? resetBitrateButton.width + parent.spacing : 0))

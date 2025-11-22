@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QLocale>
 #include <QReadWriteLock>
+#include <QtGlobal>
 #include <QtMath>
 
 #include <QtDebug>
@@ -144,7 +145,7 @@ void StreamingPreferences::reload()
     height = settings.value(SER_HEIGHT, 720).toInt();
     fps = settings.value(SER_FPS, 60).toInt();
     enableYUV444 = settings.value(SER_YUV444, false).toBool();
-    bitrateKbps = settings.value(SER_BITRATE, getDefaultBitrate(width, height, fps, enableYUV444)).toInt();
+    bitrateKbps = clampBitrateKbps(settings.value(SER_BITRATE, getDefaultBitrate(width, height, fps, enableYUV444)).toInt());
     unlockBitrate = settings.value(SER_UNLOCK_BITRATE, false).toBool();
     autoAdjustBitrate = settings.value(SER_AUTOADJUSTBITRATE, true).toBool();
     enableVsync = settings.value(SER_VSYNC, true).toBool();
@@ -423,6 +424,11 @@ void StreamingPreferences::save()
     settings.setValue(SER_KEEPAWAKE, keepAwake);
 }
 
+int StreamingPreferences::clampBitrateKbps(int bitrateKbps)
+{
+    return qBound(MIN_BITRATE_KBPS, bitrateKbps, MAX_BITRATE_KBPS);
+}
+
 int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool yuv444)
 {
     // Don't scale bitrate linearly beyond 60 FPS. It's definitely not a linear
@@ -476,5 +482,5 @@ int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool
         resolutionFactor *= 2;
     }
 
-    return qRound(resolutionFactor * frameRateFactor) * 1000;
+    return clampBitrateKbps(qRound(resolutionFactor * frameRateFactor) * 1000);
 }

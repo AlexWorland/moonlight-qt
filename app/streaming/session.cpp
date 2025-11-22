@@ -190,6 +190,7 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
     }
 
     if (s_ActiveSession->m_MouseEmulationRefCount > 0) {
+        
         // Don't display the overlay if mouse emulation is already using it
         return;
     }

@@ -13,6 +13,15 @@ public:
 
     Q_INVOKABLE static int
     getDefaultBitrate(int width, int height, int fps, bool yuv444);
+    Q_INVOKABLE static int getMinBitrateKbps()
+    {
+        return MIN_BITRATE_KBPS;
+    }
+    Q_INVOKABLE static int getMaxBitrateKbps()
+    {
+        return MAX_BITRATE_KBPS;
+    }
+    Q_INVOKABLE static int clampBitrateKbps(int bitrateKbps);
 
     Q_INVOKABLE void save();
 
@@ -292,6 +301,9 @@ signals:
     void languageChanged();
 
 private:
+    static constexpr int MIN_BITRATE_KBPS = 500;
+    static constexpr int MAX_BITRATE_KBPS = 500;
+
     explicit StreamingPreferences(QQmlEngine *qmlEngine);
 
     QString getSuffixFromLanguage(Language lang);

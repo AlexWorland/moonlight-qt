@@ -684,10 +684,10 @@ bool Session::initialize()
     m_VideoCallbacks.setup = drSetup;
 
     m_StreamConfig.fps = m_Preferences->fps;
-    m_StreamConfig.bitrate = m_Preferences->bitrateKbps;
-    
+    m_StreamConfig.bitrate = StreamingPreferences::clampBitrateKbps(m_Preferences->bitrateKbps);
+
     // Initialize bitrate adjustment state
-    m_CurrentAdjustedBitrate = m_Preferences->bitrateKbps;
+    m_CurrentAdjustedBitrate = m_StreamConfig.bitrate;
     m_LastBitrateCheckTime = SDL_GetTicks();
     m_LastConnectionStatus = CONN_STATUS_OKAY;
     m_AutoAdjustBitrateActive = m_Preferences->autoAdjustBitrate;
@@ -2045,26 +2045,41 @@ void Session::execInternal()
             Uint32 timeSinceLastCheck = currentTime - lastBitrateCheckTime;
             if (timeSinceLastCheck >= 1000) {
                 int adjustedBitrate = m_CurrentAdjustedBitrate;
-                
+                int maxBitrate = StreamingPreferences::getMaxBitrateKbps();
+
                 // Use the last known connection status
                 switch (m_LastConnectionStatus) {
                 case CONN_STATUS_POOR:
                     // Reduce bitrate by half (exponential decay)
-                    adjustedBitrate = (int)(adjustedBitrate * 0.5f);
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                               "Poor network conditions detected. Reducing bitrate from %d to %d kbps",
-                               m_CurrentAdjustedBitrate, adjustedBitrate);
+                    adjustedBitrate = StreamingPreferences::clampBitrateKbps((int)(adjustedBitrate * 0.5f));
+                    if (adjustedBitrate != m_CurrentAdjustedBitrate) {
+                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                   "Poor network conditions detected. Reducing bitrate from %d to %d kbps",
+                                   m_CurrentAdjustedBitrate, adjustedBitrate);
+                    }
                     break;
 
                 case CONN_STATUS_OKAY:
                     // Increase bitrate by quarter (exponential growth)
-                    adjustedBitrate = (int)(adjustedBitrate * 1.25f);
-                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                               "Good network conditions detected. Increasing bitrate from %d to %d kbps",
-                               m_CurrentAdjustedBitrate, adjustedBitrate);
+                    if (m_CurrentAdjustedBitrate >= maxBitrate) {
+                        adjustedBitrate = m_CurrentAdjustedBitrate;
+                    }
+                    else {
+                        adjustedBitrate = qMin((int)(adjustedBitrate * 1.25f), maxBitrate);
+                        if (adjustedBitrate == maxBitrate) {
+                            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                       "Reached maximum bitrate of %d kbps. Not increasing further.",
+                                       maxBitrate);
+                        }
+                        else {
+                            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                       "Good network conditions detected. Increasing bitrate from %d to %d kbps",
+                                       m_CurrentAdjustedBitrate, adjustedBitrate);
+                        }
+                    }
                     break;
                 }
-                
+
                 m_CurrentAdjustedBitrate = adjustedBitrate;
                 lastBitrateCheckTime = currentTime;
             }

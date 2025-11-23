@@ -690,6 +690,7 @@ Flickable {
                         id: slider
 
                         value: StreamingPreferences.bitrateKbps
+                        enabled: !StreamingPreferences.autoBitrateEnabled
 
                         stepSize: 500
                         from : 500
@@ -724,6 +725,24 @@ Flickable {
                             slider.value = defaultBitrate
                         }
                     }
+                }
+
+                CheckBox {
+                    id: autoBitrateCheckbox
+                    width: parent.width
+                    text: qsTr("Auto Bitrate")
+                    checked: StreamingPreferences.autoBitrateEnabled
+                    onCheckedChanged: {
+                        StreamingPreferences.autoBitrateEnabled = checked
+                    }
+                }
+
+                Label {
+                    width: parent.width
+                    text: qsTr("Automatically adjust bitrate based on network conditions")
+                    font.pointSize: 9
+                    wrapMode: Text.Wrap
+                    visible: autoBitrateCheckbox.checked
                 }
 
                 Label {

@@ -1697,6 +1697,16 @@ bool Session::startConnectionAsync()
     return true;
 }
 
+int Session::getHostMaxBitrateKbps() const
+{
+    int hostMaxBitrate = LiGetHostMaxBitrateKbps();
+    // If host didn't send a max limit, fallback to configured bitrate
+    if (hostMaxBitrate == 0) {
+        return m_StreamConfig.bitrate;
+    }
+    return hostMaxBitrate;
+}
+
 void Session::flushWindowEvents()
 {
     // Pump events to ensure all pending OS events are posted

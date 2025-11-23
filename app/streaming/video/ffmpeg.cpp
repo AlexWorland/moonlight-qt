@@ -836,15 +836,21 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
     if (stats.receivedFps > 0) {
         if (m_VideoDecoderCtx != nullptr) {
 #ifdef DISPLAY_BITRATE
+            double currentVideoMbps = m_BwTracker.GetCurrentMbps();
             double avgVideoMbps = m_BwTracker.GetAverageMbps();
             double peakVideoMbps = m_BwTracker.GetPeakMbps();
+            int hostMaxBitrateKbps = 0;
+            if (Session::get() != nullptr) {
+                hostMaxBitrateKbps = Session::get()->getHostMaxBitrateKbps();
+            }
+            double hostMaxBitrateMbps = hostMaxBitrateKbps / 1000.0;
 #endif
 
             ret = snprintf(&output[offset],
                            length - offset,
                            "Video stream: %dx%d %.2f FPS (Codec: %s)\n"
 #ifdef DISPLAY_BITRATE
-                           "Bitrate: %.1f Mbps, Peak (%us): %.1f\n"
+                           "Bitrate: Current: %.1f Mbps, Avg: %.1f Mbps, Peak (%us): %.1f Mbps, Max Limit: %.1f Mbps\n"
 #endif
                            ,
                            m_VideoDecoderCtx->width,
@@ -853,9 +859,11 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
                            codecString
 #ifdef DISPLAY_BITRATE
                            ,
+                           currentVideoMbps,
                            avgVideoMbps,
                            m_BwTracker.GetWindowSeconds(),
-                           peakVideoMbps
+                           peakVideoMbps,
+                           hostMaxBitrateMbps
 #endif
                            );
             if (ret < 0 || ret >= length - offset) {

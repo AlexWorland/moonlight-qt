@@ -119,6 +119,8 @@ public:
         return m_OverlayManager;
     }
 
+    int getHostMaxBitrateKbps() const;
+
     void flushWindowEvents();
 
     void setShouldExitAfterQuit();

@@ -749,7 +749,7 @@ void FFmpegVideoDecoder::addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst)
     // The following code assumes the global measure was already started first
     SDL_assert(dst.measurementStartUs <= src.measurementStartUs);
 
-    double timeDiffSecs = (double)(LiGetMicroseconds() - dst.measurementStartUs) / 1000000.0;
+    double timeDiffSecs = (double)(LiGetMillis() * 1000 - dst.measurementStartUs) / 1000000.0;
     dst.totalFps        = (double)dst.totalFrames / timeDiffSecs;
     dst.receivedFps     = (double)dst.receivedFrames / timeDiffSecs;
     dst.decodedFps      = (double)dst.decodedFrames / timeDiffSecs;
@@ -1760,7 +1760,7 @@ void FFmpegVideoDecoder::decoderThreadProc()
                     av_log_set_level(AV_LOG_INFO);
 
                     // Capture a frame timestamp to measuring pacing delay
-                    frame->pkt_dts = LiGetMicroseconds();
+                    frame->pkt_dts = LiGetMillis() * 1000;
 
                     if (!m_FrameInfoQueue.isEmpty()) {
                         // Data buffers in the DU are not valid here!
@@ -1769,10 +1769,10 @@ void FFmpegVideoDecoder::decoderThreadProc()
                         // Count time in avcodec_send_packet() and avcodec_receive_frame()
                         // as time spent decoding. Also count time spent in the decode unit
                         // queue because that's directly caused by decoder latency.
-                        m_ActiveWndVideoStats.totalDecodeTimeUs += (LiGetMicroseconds() - du.enqueueTimeUs);
+                        m_ActiveWndVideoStats.totalDecodeTimeUs += (LiGetMillis() * 1000 - du.enqueueTimeMs * 1000);
 
                         // Store the presentation time (90 kHz timebase)
-                        frame->pts = (int64_t)du.rtpTimestamp;
+                        frame->pts = (int64_t)du.presentationTimeMs * 90;
                     }
 
                     m_ActiveWndVideoStats.decodedFrames++;
@@ -1845,7 +1845,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
     }
 
     if (!m_LastFrameNumber) {
-        m_ActiveWndVideoStats.measurementStartUs = LiGetMicroseconds();
+        m_ActiveWndVideoStats.measurementStartUs = LiGetMillis() * 1000;
         m_LastFrameNumber = du->frameNumber;
     }
     else {
@@ -1858,7 +1858,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
     m_BwTracker.AddBytes(du->fullLength);
 
     // Flip stats windows roughly every second
-    if (LiGetMicroseconds() > m_ActiveWndVideoStats.measurementStartUs + 1000000) {
+    if (LiGetMillis() * 1000 > m_ActiveWndVideoStats.measurementStartUs + 1000000) {
         // Update overlay stats if it's enabled
         if (Session::get()->getOverlayManager().isOverlayEnabled(Overlay::OverlayDebug)) {
             VIDEO_STATS lastTwoWndStats = {};
@@ -1877,7 +1877,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         // Move this window into the last window slot and clear it for next window
         SDL_memcpy(&m_LastWndVideoStats, &m_ActiveWndVideoStats, sizeof(m_ActiveWndVideoStats));
         SDL_zero(m_ActiveWndVideoStats);
-        m_ActiveWndVideoStats.measurementStartUs = LiGetMicroseconds();
+        m_ActiveWndVideoStats.measurementStartUs = LiGetMillis() * 1000;
     }
 
     if (du->frameHostProcessingLatency != 0) {
@@ -1920,7 +1920,7 @@ int FFmpegVideoDecoder::submitDecodeUnit(PDECODE_UNIT du)
         m_Pkt->flags = 0;
     }
 
-    m_ActiveWndVideoStats.totalReassemblyTimeUs += (du->enqueueTimeUs - du->receiveTimeUs);
+    m_ActiveWndVideoStats.totalReassemblyTimeUs += (du->enqueueTimeMs * 1000 - du->receiveTimeMs * 1000);
 
     err = avcodec_send_packet(m_VideoDecoderCtx, m_Pkt);
     if (err < 0) {

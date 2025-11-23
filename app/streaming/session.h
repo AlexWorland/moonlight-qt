@@ -121,6 +121,11 @@ public:
 
     int getHostMaxBitrateKbps() const;
 
+    int getConnectionStatus() const
+    {
+        return m_ConnectionStatus;
+    }
+
     void flushWindowEvents();
 
     void setShouldExitAfterQuit();
@@ -283,6 +288,7 @@ private:
     Uint32 m_DropAudioEndTime;
 
     Overlay::OverlayManager m_OverlayManager;
+    int m_ConnectionStatus; // Current connection status from moonlight-common-c (CONN_STATUS_OKAY or CONN_STATUS_POOR)
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;

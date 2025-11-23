@@ -253,7 +253,7 @@ HEADERS += \
 ffmpeg {
     message(FFmpeg decoder selected)
 
-    DEFINES += HAVE_FFMPEG
+    DEFINES += HAVE_FFMPEG DISPLAY_BITRATE
     SOURCES += \
         streaming/video/ffmpeg.cpp \
         streaming/video/ffmpeg-renderers/genhwaccel.cpp \

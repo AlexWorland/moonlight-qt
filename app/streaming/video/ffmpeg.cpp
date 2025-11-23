@@ -756,6 +756,40 @@ void FFmpegVideoDecoder::addVideoStats(VIDEO_STATS& src, VIDEO_STATS& dst)
     dst.renderedFps     = (double)dst.renderedFrames / timeDiffSecs;
 }
 
+// Get network quality string from moonlight-common-c connection status
+// Uses the single source of truth from moonlight-common-c's connection assessment
+// Indicates if status came from host or client calculation
+static const char* getNetworkQualityString()
+{
+    if (Session::get() == nullptr) {
+        return "Unknown";
+    }
+    
+    int connectionStatus = Session::get()->getConnectionStatus();
+    bool fromHost = LiIsConnectionStatusFromHost();
+    
+    const char* quality;
+    switch (connectionStatus) {
+    case CONN_STATUS_POOR:
+        quality = "Poor";
+        break;
+    case CONN_STATUS_OKAY:
+        quality = "Good";
+        break;
+    default:
+        return "Unknown";
+    }
+    
+    // Format with source indicator
+    static char result[32];
+    if (fromHost) {
+        snprintf(result, sizeof(result), "%s (Host)", quality);
+    } else {
+        snprintf(result, sizeof(result), "%s (Client)", quality);
+    }
+    return result;
+}
+
 void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, int length)
 {
     int offset = 0;
@@ -915,17 +949,21 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS& stats, char* output, i
             snprintf(rttString, sizeof(rttString), "N/A");
         }
 
+        const char* networkQuality = getNetworkQualityString();
+        
         ret = snprintf(&output[offset],
                        length - offset,
                        "Frames dropped by your network connection: %.2f%%\n"
                        "Frames dropped due to network jitter: %.2f%%\n"
                        "Average network latency: %s\n"
+                       "Network quality: %s\n"
                        "Average decoding time: %.2f ms\n"
                        "Average frame queue delay: %.2f ms\n"
                        "Average rendering time (including monitor V-sync latency): %.2f ms\n",
                        (float)stats.networkDroppedFrames / stats.totalFrames * 100,
                        (float)stats.pacerDroppedFrames / stats.decodedFrames * 100,
                        rttString,
+                       networkQuality,
                        (double)(stats.totalDecodeTimeUs / 1000.0) / stats.decodedFrames,
                        (double)(stats.totalPacerTimeUs / 1000.0) / stats.renderedFrames,
                        (double)(stats.totalRenderTimeUs / 1000.0) / stats.renderedFrames);

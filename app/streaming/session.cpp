@@ -185,6 +185,9 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
                 "Connection status update: %d",
                 connectionStatus);
 
+    // Store the connection status for stats display
+    s_ActiveSession->m_ConnectionStatus = connectionStatus;
+
     if (!s_ActiveSession->m_Preferences->connectionWarnings) {
         return;
     }
@@ -584,7 +587,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
       m_AudioSampleCount(0),
-      m_DropAudioEndTime(0)
+      m_DropAudioEndTime(0),
+      m_ConnectionStatus(CONN_STATUS_OKAY) // Initialize to OKAY, will be updated by callback
 {
 }
 
